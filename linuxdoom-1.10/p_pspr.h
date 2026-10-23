@@ -72,6 +72,10 @@ typedef struct
     fixed_t	sx;
     fixed_t	sy;
 
+    // Position at the start of the last tic, for drawing between tics.
+    fixed_t	oldsx;
+    fixed_t	oldsy;
+
 } pspdef_t;
 
 #endif

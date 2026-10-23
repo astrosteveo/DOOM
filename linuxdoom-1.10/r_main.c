@@ -33,7 +33,10 @@ static const char rcsid[] = "$Id: r_main.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
 
 
 #include "doomdef.h"
+#include "doomstat.h"
 #include "d_net.h"
+#include "g_game.h"
+#include "i_system.h"
 
 #include "m_bbox.h"
 
@@ -73,6 +76,10 @@ int			projectionwidth;
 // Scales scale (pixels per world unit) to what the original 320 pixel
 // view would have, for indexing the scalelight tables.
 fixed_t			lightscalenorm;
+
+// How far from the previous tic's positions to the current ones to
+// draw things, FRACUNIT for exactly where the game has them.
+fixed_t			renderfrac = FRACUNIT;
 
 // just for profiling purposes
 int			framecount;	
@@ -844,17 +851,53 @@ R_PointInSubsector
 //
 // R_SetupFrame
 //
+//
+// R_Lerp, R_LerpAngle
+// Between a value at the start of the last tic and its current value.
+//
+fixed_t R_Lerp (fixed_t old, fixed_t cur)
+{
+    return old + (fixed_t)((((int64_t)cur - old) * renderfrac) >> FRACBITS);
+}
+
+angle_t R_LerpAngle (angle_t old, angle_t cur)
+{
+    // The difference the short way round.
+    return old + (angle_t)(((int64_t)(int)(cur - old) * renderfrac) >> FRACBITS);
+}
+
 void R_SetupFrame (player_t* player)
 {		
     int		i;
+    mobj_t*	mo;
     
     viewplayer = player;
-    viewx = player->mo->x;
-    viewy = player->mo->y;
-    viewangle = player->mo->angle + viewangleoffset;
-    extralight = player->extralight;
+    mo = player->mo;
 
-    viewz = player->viewz;
+    if (renderfrac < FRACUNIT && mo->interp)
+    {
+	viewx = R_Lerp (mo->oldx, mo->x);
+	viewy = R_Lerp (mo->oldy, mo->y);
+	viewz = R_Lerp (player->oldviewz, player->viewz);
+    }
+    else
+    {
+	viewx = mo->x;
+	viewy = mo->y;
+	viewz = player->viewz;
+    }
+
+    // The player's own turning shows at once, from the mouse input
+    // the next tic will apply; everyone else's is interpolated.
+    if (renderfrac < FRACUNIT && player == &players[consoleplayer]
+	&& !demoplayback)
+	viewangle = mo->angle + G_PendingTurn () + viewangleoffset;
+    else if (renderfrac < FRACUNIT && mo->interp)
+	viewangle = R_LerpAngle (mo->oldangle, mo->angle) + viewangleoffset;
+    else
+	viewangle = mo->angle + viewangleoffset;
+
+    extralight = player->extralight;
     
     viewsin = finesine[viewangle>>ANGLETOFINESHIFT];
     viewcos = finecosine[viewangle>>ANGLETOFINESHIFT];
@@ -884,8 +927,53 @@ void R_SetupFrame (player_t* player)
 //
 // R_RenderView
 //
+//
+// R_InterpolateSectors
+// Moves floors and ceilings to where they are between tics for the
+// duration of a frame, then puts them back.
+//
+static fixed_t*	savedheights;
+static int	numsavedheights;
+
+static void R_InterpolateSectors (void)
+{
+    int		i;
+
+    if (numsavedheights < numsectors*2)
+    {
+	numsavedheights = numsectors*2;
+	savedheights = realloc (savedheights, numsavedheights*sizeof(fixed_t));
+	if (!savedheights)
+	    I_Error ("R_InterpolateSectors: out of memory");
+    }
+
+    for (i=0 ; i<numsectors ; i++)
+    {
+	savedheights[i*2] = sectors[i].floorheight;
+	savedheights[i*2+1] = sectors[i].ceilingheight;
+	sectors[i].floorheight = R_Lerp (sectors[i].oldfloorheight,
+					 sectors[i].floorheight);
+	sectors[i].ceilingheight = R_Lerp (sectors[i].oldceilingheight,
+					   sectors[i].ceilingheight);
+    }
+}
+
+static void R_RestoreSectors (void)
+{
+    int		i;
+
+    for (i=0 ; i<numsectors ; i++)
+    {
+	sectors[i].floorheight = savedheights[i*2];
+	sectors[i].ceilingheight = savedheights[i*2+1];
+    }
+}
+
 void R_RenderPlayerView (player_t* player)
 {	
+    if (renderfrac < FRACUNIT)
+	R_InterpolateSectors ();
+
     R_SetupFrame (player);
 
     // Clear buffers.
@@ -909,6 +997,9 @@ void R_RenderPlayerView (player_t* player)
     NetUpdate ();
     
     R_DrawMasked ();
+
+    if (renderfrac < FRACUNIT)
+	R_RestoreSectors ();
 
     // Check for new console commands.
     NetUpdate ();				

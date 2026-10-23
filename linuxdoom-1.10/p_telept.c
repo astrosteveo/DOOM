@@ -123,6 +123,11 @@ EV_Teleport
 
 		thing->angle = m->angle;
 		thing->momx = thing->momy = thing->momz = 0;
+
+		// Not drawn sliding from where it was.
+		thing->interp = false;
+		if (thing->player)
+		    thing->player->oldviewz = thing->player->viewz;
 		return 1;
 	    }	
 	}

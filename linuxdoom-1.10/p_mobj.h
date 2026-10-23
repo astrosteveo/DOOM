@@ -283,6 +283,14 @@ typedef struct mobj_s
     // Thing being chased/attacked for tracers.
     struct mobj_s*	tracer;	
     
+    // Where it was at the start of the last tic, so the renderer can
+    // draw it in between tics. Not part of the game state.
+    fixed_t		oldx;
+    fixed_t		oldy;
+    fixed_t		oldz;
+    angle_t		oldangle;
+    boolean		interp;		// false until the old values are valid
+
 } mobj_t;
 
 

@@ -34,6 +34,10 @@
 // Carries out all thinking of monsters and players.
 void P_Ticker (void);
 
+// Snapshot of positions for drawing between tics; see p_tick.c.
+void P_SaveOldPositions (void);
+extern int lastsimtic;
+
 
 
 #endif

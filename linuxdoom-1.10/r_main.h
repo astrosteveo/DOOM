@@ -54,6 +54,11 @@ extern fixed_t		projection;
 extern int		projectionwidth;
 extern fixed_t		lightscalenorm;
 
+// Drawing between tics; see r_main.c.
+extern fixed_t		renderfrac;
+fixed_t R_Lerp (fixed_t old, fixed_t cur);
+angle_t R_LerpAngle (angle_t old, angle_t cur);
+
 extern int		validcount;
 
 extern int		linecount;

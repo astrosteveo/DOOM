@@ -49,6 +49,11 @@ int I_GetTime (void);
 // Used to interpolate rendering between tics.
 fixed_t I_GetTimeFrac (void);
 
+// Note that the game has just run the tics due, and how far real time
+// has moved on since, 0..FRACUNIT.
+void I_MarkTicTime (void);
+fixed_t I_GetTicFrac (void);
+
 // Yield the CPU for about ms milliseconds.
 void I_Sleep (int ms);
 

@@ -25,6 +25,7 @@
 
 #include "doomdef.h"
 #include "d_event.h"
+#include "tables.h"
 
 
 
@@ -66,6 +67,9 @@ void G_SecretExitLevel (void);
 void G_WorldDone (void);
 
 void G_Ticker (void);
+
+// The turn the mouse has made since the last ticcmd.
+angle_t G_PendingTurn (void);
 boolean G_Responder (event_t*	ev);
 
 void G_ScreenShot (void);

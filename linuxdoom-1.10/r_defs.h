@@ -134,6 +134,10 @@ typedef	struct
     int			linecount;
     struct line_s**	lines;	// [linecount] size
     
+    // Heights at the start of the last tic, for drawing between tics.
+    fixed_t		oldfloorheight;
+    fixed_t		oldceilingheight;
+
 } sector_t;
 
 

@@ -138,6 +138,9 @@ void D_QuitNetGame (void);
 //? how many ticks to run?
 void TryRunTics (void);
 
+// Draw frames between tics, rather than once per tic.
+extern int uncapped_framerate;
+
 
 #endif
 

@@ -127,6 +127,54 @@ void P_RunThinkers (void)
 // P_Ticker
 //
 
+//
+// P_SaveOldPositions
+// Remembers where everything is before a tic moves it, so frames drawn
+// between tics can place things in between. Touches nothing the game
+// itself uses.
+//
+int	lastsimtic = -1;	// the last tic the world actually moved
+
+void P_SaveOldPositions (void)
+{
+    thinker_t*	th;
+    mobj_t*	mo;
+    player_t*	player;
+    int		i;
+    int		j;
+
+    for (th = thinkercap.next ; th != &thinkercap ; th=th->next)
+    {
+	if (th->function.acp1 != (actionf_p1)P_MobjThinker)
+	    continue;
+	mo = (mobj_t *)th;
+	mo->oldx = mo->x;
+	mo->oldy = mo->y;
+	mo->oldz = mo->z;
+	mo->oldangle = mo->angle;
+	mo->interp = true;
+    }
+
+    for (i=0 ; i<numsectors ; i++)
+    {
+	sectors[i].oldfloorheight = sectors[i].floorheight;
+	sectors[i].oldceilingheight = sectors[i].ceilingheight;
+    }
+
+    for (i=0 ; i<MAXPLAYERS ; i++)
+    {
+	if (!playeringame[i])
+	    continue;
+	player = &players[i];
+	player->oldviewz = player->viewz;
+	for (j=0 ; j<NUMPSPRITES ; j++)
+	{
+	    player->psprites[j].oldsx = player->psprites[j].sx;
+	    player->psprites[j].oldsy = player->psprites[j].sy;
+	}
+    }
+}
+
 void P_Ticker (void)
 {
     int		i;
@@ -144,6 +192,9 @@ void P_Ticker (void)
 	return;
     }
     
+    P_SaveOldPositions ();
+    lastsimtic = gametic;
+
 		
     for (i=0 ; i<MAXPLAYERS ; i++)
 	if (playeringame[i])

@@ -635,6 +635,8 @@ int	oldnettics;
 
 extern	boolean	advancedemo;
 
+int	uncapped_framerate = 1;
+
 void TryRunTics (void)
 {
     int		i;
@@ -677,6 +679,16 @@ void TryRunTics (void)
     
     if (counts < 1)
 	counts = 1;
+
+    // With the frame rate uncapped, frames are drawn between tics:
+    // if no tic is due there is nothing to wait for.
+    if (uncapped_framerate && !singletics)
+    {
+	if (availabletics < 1)
+	    return;
+	if (counts > availabletics)
+	    counts = availabletics;
+    }
 		
     frameon++;
 
@@ -770,4 +782,6 @@ void TryRunTics (void)
 	}
 	NetUpdate ();	// check for new console commands
     }
+
+    I_MarkTicTime ();
 }

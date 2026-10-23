@@ -31,6 +31,8 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #define	FGCOLOR		8
 
 
+#include <SDL3/SDL.h>
+
 #ifdef NORMALUNIX
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,6 +74,8 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include "am_map.h"
 
 #include "p_setup.h"
+#include "p_tick.h"
+#include "d_net.h"
 #include "r_local.h"
 
 
@@ -278,7 +282,15 @@ void D_Display (void)
     
     // draw the view directly
     if (gamestate == GS_LEVEL && !automapactive && gametic)
+    {
+	// Between tics, if the world moved in the last one.
+	if (uncapped_framerate && !singletics && lastsimtic == gametic-1)
+	    renderfrac = I_GetTicFrac ();
+	else
+	    renderfrac = FRACUNIT;
 	R_RenderPlayerView (&players[displayplayer]);
+	renderfrac = FRACUNIT;
+    }
 
     if (gamestate == GS_LEVEL && gametic)
 	HU_Drawer ();
@@ -366,6 +378,31 @@ void D_Display (void)
 //
 extern  boolean         demorecording;
 
+int	max_fps = 0;	// 0 for no limit
+
+//
+// D_LimitFrameRate
+// Without vsync, uncapped frames would come as fast as they can be
+// drawn; max_fps holds them back.
+//
+static void D_LimitFrameRate (void)
+{
+    static Uint64	nextframe;
+    Uint64		now;
+    Uint64		interval;
+
+    if (max_fps <= 0 || !uncapped_framerate || singletics)
+	return;
+
+    interval = SDL_NS_PER_SECOND / max_fps;
+    now = SDL_GetTicksNS ();
+    if (nextframe > now && nextframe - now <= interval)
+	SDL_DelayPrecise (nextframe - now);
+    else
+	nextframe = now;
+    nextframe += interval;
+}
+
 void D_DoomLoop (void)
 {
     if (demorecording)
@@ -401,12 +438,21 @@ void D_DoomLoop (void)
 	}
 	else
 	{
+	    // NetUpdate only reads input when a tic is due. Frames
+	    // between tics read it too, so that the view can turn
+	    // with the mouse at once (see G_PendingTurn).
+	    if (uncapped_framerate)
+	    {
+		I_StartTic ();
+		D_ProcessEvents ();
+	    }
 	    TryRunTics (); // will run at least one tic
 	}
 		
 	S_UpdateSounds (players[consoleplayer].mo);// move positional sounds
 
 	// Update display, next frame, with current state.
+	D_LimitFrameRate ();
 	D_Display ();
 
 #ifndef SNDSERV

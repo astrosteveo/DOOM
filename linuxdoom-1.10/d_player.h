@@ -163,6 +163,10 @@ typedef struct player_s
     // True if secret level has been done.
     boolean		didsecret;	
 
+    // View height at the start of the last tic, for drawing between
+    // tics.
+    fixed_t		oldviewz;
+
 } player_t;
 
 

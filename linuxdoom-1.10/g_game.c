@@ -191,6 +191,11 @@ boolean*	mousebuttons = &mousearray[1];		// allow [-1]
 int             mousex;
 int		mousey;         
 
+// Mouse motion since the last ticcmd, scaled by the sensitivity,
+// in tenths of a unit.
+static int	mouseaccumx;
+static int	mouseaccumy;
+
 int             dclicktime;
 int		dclickstate;
 int		dclicks; 
@@ -403,6 +408,11 @@ void G_BuildTiccmd (ticcmd_t* cmd)
 	} 
     } 
  
+    mousex = mouseaccumx / 10;
+    mousey = mouseaccumy / 10;
+    mouseaccumx -= mousex * 10;
+    mouseaccumy -= mousey * 10;
+
     forward += mousey; 
     if (strafe) 
 	side += mousex*2; 
@@ -490,12 +500,33 @@ void G_DoLoadLevel (void)
     memset (gamekeydown, 0, sizeof(gamekeydown)); 
     joyxmove = joyymove = 0; 
     mousex = mousey = 0; 
+    mouseaccumx = mouseaccumy = 0;
     sendpause = sendsave = paused = false; 
     memset (mousearray, 0, sizeof(mousearray)); 
     memset (joyarray, 0, sizeof(joyarray)); 
 } 
  
  
+//
+// G_PendingTurn
+// How far the mouse will turn the player in the next ticcmd, so the
+// view can turn right away instead of up to a tic later.
+//
+angle_t G_PendingTurn (void)
+{
+    boolean	strafe;
+
+    if (demoplayback)
+	return 0;
+
+    strafe = gamekeydown[key_strafe] || mousebuttons[mousebstrafe] 
+	|| joybuttons[joybstrafe]; 
+    if (strafe)
+	return 0;
+
+    return (angle_t)(-(mouseaccumx / 10) * 0x8) << 16;
+}
+
 //
 // G_Responder  
 // Get info needed to make ticcmd_ts for the players.
@@ -575,8 +606,8 @@ boolean G_Responder (event_t* ev)
 	mousebuttons[0] = ev->data1 & 1; 
 	mousebuttons[1] = ev->data1 & 2; 
 	mousebuttons[2] = ev->data1 & 4; 
-	mousex = ev->data2*(mouseSensitivity+5)/10; 
-	mousey = ev->data3*(mouseSensitivity+5)/10; 
+	mouseaccumx += ev->data2*(mouseSensitivity+5); 
+	mouseaccumy += ev->data3*(mouseSensitivity+5); 
 	return true;    // eat events 
  
       case ev_joystick: 
@@ -1238,6 +1269,7 @@ void G_DoLoadGame (void)
     P_UnArchiveWorld (); 
     P_UnArchiveThinkers (); 
     P_UnArchiveSpecials (); 
+    P_SaveOldPositions ();
  
     if (*save_p != 0x1d) 
 	I_Error ("Bad savegame");

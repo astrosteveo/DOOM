@@ -216,6 +216,8 @@ extern int	aspect_ratio_correct;
 extern int	integer_scaling;
 extern int	smooth_scaling;
 extern int	render_scale;
+extern int	uncapped_framerate;
+extern int	max_fps;
 extern int	widescreen;
 extern int	grabmouse;
 extern int	mouse_novert;
@@ -288,6 +290,8 @@ default_t	defaults[] =
     DEFINT("smooth_scaling", smooth_scaling, 1),
     DEFINT("render_scale", render_scale, 0),
     DEFINT("widescreen", widescreen, 1),
+    DEFINT("uncapped_framerate", uncapped_framerate, 1),
+    DEFINT("max_fps", max_fps, 0),
 
     DEFINT("snd_channels", numChannels, 8),
     DEFINT("snd_samplerate", snd_samplerate, 48000),

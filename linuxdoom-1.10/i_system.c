@@ -130,6 +130,38 @@ fixed_t I_GetTimeFrac (void)
 
 
 //
+// I_MarkTicTime, I_GetTicFrac
+// The game's latest state belongs to the real tic it was run in.
+// Frames drawn later are that far into the next tic, which can only
+// grow until another tic runs: unlike I_GetTimeFrac it never wraps
+// back to 0 just before that.
+//
+static Uint64	lastticstart;
+
+void I_MarkTicTime (void)
+{
+    Uint64	now;
+    Uint64	tic;
+
+    now = SDL_GetTicksNS ();
+    if (!basetime)
+	basetime = now;
+
+    tic = (now - basetime) * TICRATE / SDL_NS_PER_SECOND;
+    lastticstart = basetime + tic * SDL_NS_PER_SECOND / TICRATE;
+}
+
+fixed_t I_GetTicFrac (void)
+{
+    Uint64	elapsed;
+    Uint64	frac;
+
+    elapsed = SDL_GetTicksNS () - lastticstart;
+    frac = elapsed * TICRATE * FRACUNIT / SDL_NS_PER_SECOND;
+    return frac >= FRACUNIT ? FRACUNIT : (fixed_t)frac;
+}
+
+//
 // I_Sleep
 // Gives the CPU back while waiting for the next tic.
 //

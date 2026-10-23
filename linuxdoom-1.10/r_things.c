@@ -479,11 +479,31 @@ void R_ProjectSprite (mobj_t* thing)
     angle_t		ang;
     fixed_t		iscale;
 
+    fixed_t		thingx;
+    fixed_t		thingy;
+    fixed_t		thingz;
+    angle_t		thingangle;
     int64_t		edge;
+
+    // Between tics, draw it between where it was and where it is.
+    if (renderfrac < FRACUNIT && thing->interp)
+    {
+	thingx = R_Lerp (thing->oldx, thing->x);
+	thingy = R_Lerp (thing->oldy, thing->y);
+	thingz = R_Lerp (thing->oldz, thing->z);
+	thingangle = R_LerpAngle (thing->oldangle, thing->angle);
+    }
+    else
+    {
+	thingx = thing->x;
+	thingy = thing->y;
+	thingz = thing->z;
+	thingangle = thing->angle;
+    }
     
     // transform the origin point
-    tr_x = thing->x - viewx;
-    tr_y = thing->y - viewy;
+    tr_x = thingx - viewx;
+    tr_y = thingy - viewy;
 	
     gxt = FixedMul(tr_x,viewcos); 
     gyt = -FixedMul(tr_y,viewsin);
@@ -521,8 +541,8 @@ void R_ProjectSprite (mobj_t* thing)
     if (sprframe->rotate)
     {
 	// choose a different rotation based on player view
-	ang = R_PointToAngle (thing->x, thing->y);
-	rot = (ang-thing->angle+(unsigned)(ANG45/2)*9)>>29;
+	ang = R_PointToAngle (thingx, thingy);
+	rot = (ang-thingangle+(unsigned)(ANG45/2)*9)>>29;
 	lump = sprframe->lump[rot];
 	flip = (boolean)sprframe->flip[rot];
     }
@@ -555,10 +575,10 @@ void R_ProjectSprite (mobj_t* thing)
     vis = R_NewVisSprite ();
     vis->mobjflags = thing->flags;
     vis->scale = xscale<<detailshift;
-    vis->gx = thing->x;
-    vis->gy = thing->y;
-    vis->gz = thing->z;
-    vis->gzt = thing->z + spritetopoffset[lump];
+    vis->gx = thingx;
+    vis->gy = thingy;
+    vis->gz = thingz;
+    vis->gzt = thingz + spritetopoffset[lump];
     vis->texturemid = vis->gzt - viewz;
     vis->x1 = x1 < 0 ? 0 : x1;
     vis->x2 = x2 >= viewwidth ? viewwidth-1 : x2;	
@@ -650,6 +670,8 @@ void R_AddSprites (sector_t* sec)
 //
 void R_DrawPSprite (pspdef_t* psp)
 {
+    fixed_t		sx;
+    fixed_t		sy;
     fixed_t		tx;
     int			x1;
     int			x2;
@@ -678,7 +700,19 @@ void R_DrawPSprite (pspdef_t* psp)
     flip = (boolean)sprframe->flip[0];
     
     // calculate edges of the shape
-    tx = psp->sx-160*FRACUNIT;
+    // Weapon bob and raising/lowering, between tics.
+    if (renderfrac < FRACUNIT)
+    {
+	sx = R_Lerp (psp->oldsx, psp->sx);
+	sy = R_Lerp (psp->oldsy, psp->sy);
+    }
+    else
+    {
+	sx = psp->sx;
+	sy = psp->sy;
+    }
+
+    tx = sx-160*FRACUNIT;
 	
     tx -= spriteoffset[lump];	
     x1 = (centerxfrac + FixedMul (tx,pspritescale) ) >>FRACBITS;
@@ -697,7 +731,7 @@ void R_DrawPSprite (pspdef_t* psp)
     // store information in a vissprite
     vis = &avis;
     vis->mobjflags = 0;
-    vis->texturemid = (BASEYCENTER<<FRACBITS)+FRACUNIT/2-(psp->sy-spritetopoffset[lump]);
+    vis->texturemid = (BASEYCENTER<<FRACBITS)+FRACUNIT/2-(sy-spritetopoffset[lump]);
     vis->x1 = x1 < 0 ? 0 : x1;
     vis->x2 = x2 >= viewwidth ? viewwidth-1 : x2;	
     vis->scale = pspritescale<<detailshift;
