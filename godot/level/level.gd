@@ -25,6 +25,7 @@ const SECTOR_ROW := 256
 @onready var walls: MeshInstance3D = %Walls
 @onready var planes: Node3D = %Planes
 @onready var things: MultiMeshInstance3D = %Things
+@onready var lights: DoomThingLights = %Lights
 
 var _materials: Dictionary[int, ShaderMaterial] = {}
 var _textures := PackedInt32Array()
@@ -115,7 +116,9 @@ func update_planes(sim: DoomSim) -> void:
 		_levels = levels
 
 
-## Moves the boxes to where the things are this tic.
+## Moves the boxes to where the things are this tic, and the lights to
+## those that give light, unless the lights are hidden. Those boxes
+## glow in the lights' colours.
 func update_things(sim: DoomSim) -> void:
 	var data := sim.get_things()
 	var coords: PackedFloat32Array = data["coords"]
@@ -138,7 +141,14 @@ func update_things(sim: DoomSim) -> void:
 		var basis := Basis(Vector3.UP, DoomSpace.yaw(coords[c + 5])).scaled(size)
 		var origin := DoomSpace.point(coords[c], coords[c + 1], coords[c + 2] + height / 2.0)
 		multimesh.set_instance_transform(n, Transform3D(basis, origin))
-		multimesh.set_instance_color(n, Color.from_hsv(fmod(types[shown[n]] * 0.618, 1.0), 0.6, 0.9))
+		var type := types[shown[n]]
+		if lights.visible and DoomThingLights.gives_light(type):
+			multimesh.set_instance_color(n, DoomThingLights.light_color(type) * 1.5)
+		else:
+			multimesh.set_instance_color(n, Color.from_hsv(fmod(type * 0.618, 1.0), 0.6, 0.9))
+
+	if lights.visible:
+		lights.update(data)
 
 
 ## Sets up the sector textures for the level DoomSim is on now, with

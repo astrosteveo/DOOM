@@ -5,8 +5,11 @@
 // changes a texture and not a mesh. UV2.x is the sector, rounded since
 // interpolation can leave it a hair under; on a wall UV2.y is its fake
 // contrast.
+//
+// Doom's light is the surface's emission, its ambient light: the scene
+// has no other, so with no lamps about it looks as in Doom. Godot's
+// lights (thing_lights.gd) add to it.
 shader_type spatial;
-render_mode unshaded;
 
 #include "res://level/doom_light.gdshaderinc"
 #include "res://level/doom_planes.gdshaderinc"
@@ -27,5 +30,10 @@ void fragment() {
 	// View space is in metres, at 32 map units each.
 	float depth = -VERTEX.z * 32.0;
 	int colormap = doom_colormap(level, depth, int(round(UV2.y)), plane);
-	ALBEDO = doom_shade(texture(albedo, UV).rgb, colormap);
+	vec3 color = texture(albedo, UV).rgb;
+	EMISSION = doom_shade(color, colormap);
+	// Invulnerability turns lit colour gray too.
+	ALBEDO = colormap == INVERSECOLORMAP ? EMISSION : color;
+	ROUGHNESS = 0.85;
+	SPECULAR = 0.3;
 }

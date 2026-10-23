@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://main.gd" id="1"]
 [ext_resource type="Script" path="res://level/level.gd" id="2"]
+[ext_resource type="Script" path="res://level/thing_lights.gd" id="3"]
 
 [sub_resource type="StandardMaterial3D" id="thing_material"]
 shading_mode = 0
@@ -18,6 +19,15 @@ mesh = SubResource("thing_box")
 [sub_resource type="Environment" id="environment"]
 background_mode = 1
 background_color = Color(0.08, 0.08, 0.1, 1)
+ambient_light_source = 1
+reflected_light_source = 1
+glow_enabled = true
+glow_intensity = 0.5
+glow_bloom = 0.05
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.012
+volumetric_fog_anisotropy = 0.4
+volumetric_fog_length = 48.0
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1")
@@ -37,12 +47,25 @@ unique_name_in_owner = true
 
 [node name="Things" type="MultiMeshInstance3D" parent="Level"]
 unique_name_in_owner = true
+cast_shadow = 0
 multimesh = SubResource("things")
+
+[node name="Lights" type="Node3D" parent="Level"]
+unique_name_in_owner = true
+script = ExtResource("3")
 
 [node name="Camera" type="Camera3D" parent="."]
 unique_name_in_owner = true
 fov = 73.74
 near = 0.05
 
+[node name="MuzzleFlash" type="OmniLight3D" parent="Camera"]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, -0.5)
+visible = false
+light_color = Color(1, 0.8, 0.5, 1)
+omni_range = 8.0
+
 [node name="Environment" type="WorldEnvironment" parent="."]
+unique_name_in_owner = true
 environment = SubResource("environment")

@@ -7,11 +7,15 @@ extends Node3D
 ## frame is from tic_fraction.
 ##
 ## Doom's command line goes after "--": godot --path godot -- -warp 1 1
-## With none, the game runs its title loop and plays its demos.
+## With none, the game runs its title loop and plays its demos. -classic,
+## which the game ignores, leaves out Godot's lights, fog and glow, to
+## show the level lit only as Doom lights it, as the SDL3 build does.
 
 @onready var sim: DoomSim = %Sim
 @onready var level: DoomLevel = %Level
 @onready var camera: Camera3D = %Camera
+@onready var muzzle_flash: OmniLight3D = %MuzzleFlash
+@onready var environment: Environment = %Environment.environment
 
 var _levelcount := 0
 
@@ -19,6 +23,10 @@ var _levelcount := 0
 func _ready() -> void:
 	var args := PackedStringArray(["-nosound", "-nogui"])
 	args.append_array(OS.get_cmdline_user_args())
+	if args.has("-classic"):
+		level.lights.visible = false
+		environment.glow_enabled = false
+		environment.volumetric_fog_enabled = false
 	_check(sim.start(args))
 
 
@@ -34,6 +42,9 @@ func _physics_process(_delta: float) -> void:
 		return
 	RenderingServer.global_shader_parameter_set("extralight", state["extralight"])
 	RenderingServer.global_shader_parameter_set("fixedcolormap", state["fixedcolormap"])
+	# A shot lights the room for as long as Doom's extralight lasts.
+	muzzle_flash.visible = level.lights.visible and state["extralight"] > 0
+	muzzle_flash.light_energy = 0.6 * state["extralight"]
 	if state["levelcount"] != _levelcount:
 		_levelcount = state["levelcount"]
 		level.build(sim)

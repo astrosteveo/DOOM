@@ -3,7 +3,7 @@
 // and at full brightness. Those move between tics as other walls and
 // ceilings do.
 shader_type spatial;
-render_mode unshaded;
+render_mode unshaded, fog_disabled;
 
 #include "res://level/doom_planes.gdshaderinc"
 
