@@ -75,6 +75,10 @@ static Uint32		palette32[256];
 
 static boolean		resizepending;
 
+// Command line overrides, which unlike the options aren't saved.
+static boolean		nograbmouse;
+static int		scaleoverride;
+
 static boolean		mousegrabbed;
 static float		mouseaccumx;
 static float		mouseaccumy;
@@ -174,7 +178,7 @@ static void UpdateMouseGrab (void)
 {
     boolean	grab;
 
-    grab = grabmouse
+    grab = grabmouse && !nograbmouse
 	&& usemouse
 	&& (SDL_GetWindowFlags (window) & SDL_WINDOW_INPUT_FOCUS)
 	&& gamestate == GS_LEVEL
@@ -223,7 +227,7 @@ void I_StartFrame (void)
 
 static void ToggleFullscreen (void)
 {
-    fullscreen = !fullscreen;
+    fullscreen = !(SDL_GetWindowFlags (window) & SDL_WINDOW_FULLSCREEN);
     SDL_SetWindowFullscreen (window, fullscreen);
 }
 
@@ -572,7 +576,7 @@ static void ChooseResolution (void)
     pixelaspect = aspect_ratio_correct ? 1.2 : 1.0;
 
     // Enough rows that the picture is only ever scaled down.
-    scale = render_scale;
+    scale = scaleoverride ? scaleoverride : render_scale;
     if (scale <= 0)
 	scale = (int)ceil (h / (ORIGHEIGHT * pixelaspect));
 
@@ -658,6 +662,7 @@ static void PickWindowSize (int* w, int* h)
 
 void I_InitGraphics(void)
 {
+    int			startfullscreen;
     static int		firsttime=1;
     int			w;
     int			h;
@@ -667,17 +672,20 @@ void I_InitGraphics(void)
 	return;
     firsttime = 0;
 
+    // These last only for the session; Alt+Enter changes fullscreen
+    // for good.
+    startfullscreen = fullscreen;
     if (M_CheckParm ("-fullscreen"))
-	fullscreen = 1;
+	startfullscreen = 1;
     if (M_CheckParm ("-window"))
-	fullscreen = 0;
+	startfullscreen = 0;
     if (M_CheckParm ("-nograbmouse"))
-	grabmouse = 0;
+	nograbmouse = true;
     {
 	int	p = M_CheckParm ("-scale");
 
 	if (p && p < myargc-1)
-	    render_scale = atoi (myargv[p+1]);
+	    scaleoverride = atoi (myargv[p+1]);
     }
 
     if (!SDL_InitSubSystem (SDL_INIT_VIDEO))
@@ -686,7 +694,7 @@ void I_InitGraphics(void)
     PickWindowSize (&w, &h);
 
     flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
-    if (fullscreen)
+    if (startfullscreen)
 	flags |= SDL_WINDOW_FULLSCREEN;
 
     window = SDL_CreateWindow (PROGRAM_TITLE, w, h, flags);
