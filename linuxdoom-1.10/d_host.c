@@ -369,7 +369,10 @@ int DH_Draw (float fraction)
 	for (x=viewwindowx ; x<viewwindowx+scaledviewwidth ; x++)
 	{
 	    i = y*SCREENWIDTH + x;
-	    shown[i] = screens[0][i] == screencopy[i];
+	    // The fuzz of partial invisibility maps what is under it, so
+	    // it differs between the passes without the view showing
+	    // through: only a pixel still holding both fills does.
+	    shown[i] = !(screencopy[i] == 0 && screens[0][i] == 255);
 	}
     }
     memcpy (screens[0], screencopy, n);
@@ -411,9 +414,9 @@ void DH_ScreenRGBA (unsigned char* rgba)
     for (i=0 ; i<SCREENWIDTH*SCREENHEIGHT ; i++)
     {
 	c = palette + screens[0][i]*3;
-	rgba[i*4] = c[0];
-	rgba[i*4+1] = c[1];
-	rgba[i*4+2] = c[2];
+	rgba[i*4] = gammatable[usegamma][c[0]];
+	rgba[i*4+1] = gammatable[usegamma][c[1]];
+	rgba[i*4+2] = gammatable[usegamma][c[2]];
 	rgba[i*4+3] = !shown || i >= screensize || shown[i] ? 255 : 0;
     }
 }
@@ -427,6 +430,8 @@ void DH_ScreenRGBA (unsigned char* rgba)
 void DH_PaletteTint (int palette, float rgb[3], float* amount)
 {
     byte*	playpal;
+    byte	basegamma[768];
+    byte	tintgamma[768];
     byte*	base;
     byte*	tinted;
     int		i;
@@ -444,9 +449,15 @@ void DH_PaletteTint (int palette, float rgb[3], float* amount)
     if (palette <= 0 || palette >= 14)
 	return;
 
+    // Through the gamma table, as I_SetPalette does.
     playpal = W_CacheLumpName ("PLAYPAL", PU_CACHE);
-    base = playpal;
-    tinted = playpal + palette*768;
+    for (i=0 ; i<768 ; i++)
+    {
+	basegamma[i] = gammatable[usegamma][playpal[i]];
+	tintgamma[i] = gammatable[usegamma][playpal[palette*768+i]];
+    }
+    base = basegamma;
+    tinted = tintgamma;
 
     keep = 0;
     for (c=0 ; c<3 ; c++)
