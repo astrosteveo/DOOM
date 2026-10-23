@@ -58,9 +58,18 @@ typedef struct
     // radians counterclockwise from east. All 0 outside a level.
     float	x, y, z;
     float	angle;
+    int		sky;		// the sky's wall texture, for DH_TextureRGBA
 } dh_state_t;
 
 void		DH_GetState (dh_state_t* state);
+
+// What a wall's texture or a sector's flat is where Doom draws the sky
+// in its place: DH_GetState's sky, drawn by view angle, not mapped
+// onto the surface.
+enum
+{
+    DH_SKY = -1
+};
 
 // One side of a wall: a quad from (x1,y1) to (x2,y2), between bottom
 // and top, seen from the right of that direction, as Doom does.
@@ -70,7 +79,7 @@ typedef struct
     float	x1, y1, x2, y2;
     float	bottom, top;
     float	u1, u2, v1, v2;
-    int		texture;	// as drawn: animation applied
+    int		texture;	// as drawn: animation applied, or DH_SKY
     int		light;		// the sector's light level, 0 to 255
 } dh_wall_t;
 
@@ -90,6 +99,41 @@ typedef struct
 // The same for the things in the level.
 int		DH_GetThings (dh_thing_t* things, int max);
 
+// A sector as it is this tic. Floors and ceilings move and their
+// flats animate, so a host reads them every tic; the shape of each
+// sector, its subsectors, stays the same for the level.
+typedef struct
+{
+    float	floorheight, ceilingheight;
+    int		floorflat;	// as drawn: animation applied, or DH_SKY
+    int		ceilingflat;
+    int		light;		// 0 to 255
+} dh_sector_t;
+
+// The same for the level's sectors, numbered as the level numbers them.
+int		DH_GetSectors (dh_sector_t* sectors, int max);
+
+// A subsector: a convex piece of one sector's floor and ceiling, a leaf
+// of the level's BSP tree. Doom never stored its shape, so this is
+// rebuilt from the tree. Its corners are count points from first in
+// DH_GetSubsectorPoints, clockwise seen from above. A subsector the
+// tree leaves no area has none.
+typedef struct
+{
+    int		sector;
+    int		first;
+    int		count;
+} dh_subsector_t;
+
+typedef struct
+{
+    float	x, y;		// map units
+} dh_point_t;
+
+// The same for the level's subsectors, and the points of their corners.
+int		DH_GetSubsectors (dh_subsector_t* subsectors, int max);
+int		DH_GetSubsectorPoints (dh_point_t* points, int max);
+
 // A wall texture's name and size; 0 when there is no such texture.
 // The width is the one it repeats at, which is less than the width
 // it is built at when that isn't a power of two.
@@ -98,6 +142,22 @@ int		DH_TextureInfo (int tex, char name[9], int* width, int* height);
 // A wall texture as width*height RGBA pixels, row by row from the
 // top, in the game's palette at full brightness.
 void		DH_TextureRGBA (int tex, unsigned char* rgba);
+
+// Flats are the floor and ceiling textures, DH_FLATSIZE square, and
+// repeat on a grid fixed to the map: a point (x,y) shows texel
+// (x, -y), each modulo the size.
+enum
+{
+    DH_FLATSIZE = 64
+};
+
+// A flat's name; 0 when there is no such flat, as for the markers
+// between F_START and F_END.
+int		DH_FlatInfo (int flat, char name[9]);
+
+// A flat as DH_FLATSIZE*DH_FLATSIZE RGBA pixels, row by row, in the
+// game's palette at full brightness.
+void		DH_FlatRGBA (int flat, unsigned char* rgba);
 
 #ifdef __cplusplus
 }

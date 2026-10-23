@@ -1,7 +1,8 @@
 // DoomSim: the 1997 game, run a tic at a time inside Godot.
 //
-// It hands Godot the game's state, walls, things and textures as Doom
-// has them, in map units; the scripts turn them into Godot's space.
+// It hands Godot the game's state, walls, sectors, things, textures and
+// flats as Doom has them, in map units; the scripts turn them into
+// Godot's space.
 // It reads the game and never writes it, so demos play as they do in
 // the SDL3 build.
 
@@ -30,6 +31,9 @@ public:
 		ERROR = 2,
 	};
 
+	// A wall texture or flat that shows the sky, as d_host.h's DH_SKY.
+	static const int SKY = -1;
+
 	int start(const PackedStringArray &p_args);
 	int tic();
 	bool is_started() const { return started; }
@@ -38,8 +42,12 @@ public:
 	Dictionary get_state() const;
 	Dictionary get_walls() const;
 	Dictionary get_things() const;
+	Dictionary get_sectors() const;
+	Dictionary get_subsectors() const;
 	String get_texture_name(int p_texture) const;
 	Ref<Image> get_texture_image(int p_texture) const;
+	String get_flat_name(int p_flat) const;
+	Ref<Image> get_flat_image(int p_flat) const;
 
 protected:
 	static void _bind_methods();

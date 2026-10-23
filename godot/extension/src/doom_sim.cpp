@@ -7,10 +7,13 @@
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/packed_float32_array.hpp>
 #include <godot_cpp/variant/packed_int32_array.hpp>
+#include <godot_cpp/variant/packed_vector2_array.hpp>
 
 #include "d_host.h"
 
 using namespace godot;
+
+static_assert(DoomSim::SKY == DH_SKY, "DoomSim::SKY is d_host.h's DH_SKY");
 
 int DoomSim::start(const PackedStringArray &p_args) {
 	ERR_FAIL_COND_V_MSG(started, ERROR, "The game is already running; only one runs in a process.");
@@ -57,6 +60,7 @@ Dictionary DoomSim::get_state() const {
 	d["y"] = s.y;
 	d["z"] = s.z;
 	d["angle"] = s.angle;
+	d["sky"] = s.sky;
 	return d;
 }
 
@@ -120,6 +124,67 @@ Dictionary DoomSim::get_things() const {
 	return d;
 }
 
+Dictionary DoomSim::get_sectors() const {
+	Dictionary d;
+	if (!started) {
+		return d;
+	}
+	std::vector<dh_sector_t> sectors(DH_GetSectors(nullptr, 0));
+	int count = DH_GetSectors(sectors.data(), (int)sectors.size());
+
+	PackedFloat32Array heights;
+	PackedInt32Array flats;
+	PackedInt32Array lights;
+	heights.resize(count * 2);
+	flats.resize(count * 2);
+	lights.resize(count);
+	for (int i = 0; i < count; i++) {
+		const dh_sector_t &s = sectors[i];
+		heights[i * 2] = s.floorheight;
+		heights[i * 2 + 1] = s.ceilingheight;
+		flats[i * 2] = s.floorflat;
+		flats[i * 2 + 1] = s.ceilingflat;
+		lights[i] = s.light;
+	}
+	// heights and flats: the floor's, then the ceiling's, for each sector.
+	d["heights"] = heights;
+	d["flats"] = flats;
+	d["lights"] = lights;
+	return d;
+}
+
+Dictionary DoomSim::get_subsectors() const {
+	Dictionary d;
+	if (!started) {
+		return d;
+	}
+	std::vector<dh_subsector_t> subsectors(DH_GetSubsectors(nullptr, 0));
+	int count = DH_GetSubsectors(subsectors.data(), (int)subsectors.size());
+	std::vector<dh_point_t> points(DH_GetSubsectorPoints(nullptr, 0));
+	int numpoints = DH_GetSubsectorPoints(points.data(), (int)points.size());
+
+	PackedInt32Array sectors;
+	PackedInt32Array ranges;
+	PackedVector2Array corners;
+	sectors.resize(count);
+	ranges.resize(count * 2);
+	corners.resize(numpoints);
+	for (int i = 0; i < count; i++) {
+		sectors[i] = subsectors[i].sector;
+		ranges[i * 2] = subsectors[i].first;
+		ranges[i * 2 + 1] = subsectors[i].count;
+	}
+	for (int i = 0; i < numpoints; i++) {
+		corners[i] = Vector2(points[i].x, points[i].y);
+	}
+	// ranges: the first of its corners and how many, for each subsector;
+	// the corners go clockwise seen from above.
+	d["sectors"] = sectors;
+	d["ranges"] = ranges;
+	d["corners"] = corners;
+	return d;
+}
+
 String DoomSim::get_texture_name(int p_texture) const {
 	char name[9];
 	int width, height;
@@ -141,6 +206,25 @@ Ref<Image> DoomSim::get_texture_image(int p_texture) const {
 	return Image::create_from_data(width, height, false, Image::FORMAT_RGBA8, rgba);
 }
 
+String DoomSim::get_flat_name(int p_flat) const {
+	char name[9];
+	if (!started || !DH_FlatInfo(p_flat, name)) {
+		return String();
+	}
+	return String(name);
+}
+
+Ref<Image> DoomSim::get_flat_image(int p_flat) const {
+	char name[9];
+	if (!started || !DH_FlatInfo(p_flat, name)) {
+		return Ref<Image>();
+	}
+	PackedByteArray rgba;
+	rgba.resize(DH_FLATSIZE * DH_FLATSIZE * 4);
+	DH_FlatRGBA(p_flat, rgba.ptrw());
+	return Image::create_from_data(DH_FLATSIZE, DH_FLATSIZE, false, Image::FORMAT_RGBA8, rgba);
+}
+
 void DoomSim::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("start", "args"), &DoomSim::start);
 	ClassDB::bind_method(D_METHOD("tic"), &DoomSim::tic);
@@ -149,10 +233,15 @@ void DoomSim::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_state"), &DoomSim::get_state);
 	ClassDB::bind_method(D_METHOD("get_walls"), &DoomSim::get_walls);
 	ClassDB::bind_method(D_METHOD("get_things"), &DoomSim::get_things);
+	ClassDB::bind_method(D_METHOD("get_sectors"), &DoomSim::get_sectors);
+	ClassDB::bind_method(D_METHOD("get_subsectors"), &DoomSim::get_subsectors);
 	ClassDB::bind_method(D_METHOD("get_texture_name", "texture"), &DoomSim::get_texture_name);
 	ClassDB::bind_method(D_METHOD("get_texture_image", "texture"), &DoomSim::get_texture_image);
+	ClassDB::bind_method(D_METHOD("get_flat_name", "flat"), &DoomSim::get_flat_name);
+	ClassDB::bind_method(D_METHOD("get_flat_image", "flat"), &DoomSim::get_flat_image);
 
 	BIND_ENUM_CONSTANT(RUNNING);
 	BIND_ENUM_CONSTANT(QUIT);
 	BIND_ENUM_CONSTANT(ERROR);
+	BIND_CONSTANT(SKY);
 }
