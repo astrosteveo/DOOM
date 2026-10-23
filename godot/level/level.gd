@@ -12,12 +12,23 @@ const MF_NOSECTOR := 8	# invisible things, such as teleport exits
 @onready var things: MultiMeshInstance3D = %Things
 
 var _materials: Dictionary[int, StandardMaterial3D] = {}
+var _coords := PackedFloat32Array()
+var _textures := PackedInt32Array()
+var _lights := PackedInt32Array()
 
 
 ## Builds the level DoomSim is on now.
 func build(sim: DoomSim) -> void:
-	walls.mesh = _build_walls(sim)
+	_build_walls(sim, sim.get_walls())
 	update_things(sim)
+
+
+## Rebuilds the walls if doors, lifts, switches, lights or animated
+## textures have changed any of them since the last build.
+func update_walls(sim: DoomSim) -> void:
+	var data := sim.get_walls()
+	if data["coords"] != _coords or data["textures"] != _textures or data["lights"] != _lights:
+		_build_walls(sim, data)
 
 
 ## Moves the boxes to where the things are this tic.
@@ -46,11 +57,13 @@ func update_things(sim: DoomSim) -> void:
 		multimesh.set_instance_color(n, Color.from_hsv(fmod(types[shown[n]] * 0.618, 1.0), 0.6, 0.9))
 
 
-func _build_walls(sim: DoomSim) -> ArrayMesh:
-	var data := sim.get_walls()
+func _build_walls(sim: DoomSim, data: Dictionary) -> void:
 	var coords: PackedFloat32Array = data["coords"]
 	var textures: PackedInt32Array = data["textures"]
 	var lights: PackedInt32Array = data["lights"]
+	_coords = coords
+	_textures = textures
+	_lights = lights
 
 	# One surface per texture: positions, normals, uvs, colours.
 	var surfaces: Dictionary[int, Array] = {}
@@ -72,7 +85,7 @@ func _build_walls(sim: DoomSim) -> ArrayMesh:
 		var surface := mesh.get_surface_count() - 1
 		mesh.surface_set_material(surface, _material(sim, texture))
 		mesh.surface_set_name(surface, sim.get_texture_name(texture))
-	return mesh
+	walls.mesh = mesh
 
 
 ## One wall as two triangles, wound clockwise as seen from its front:

@@ -412,7 +412,8 @@ boolean R_TextureInfo (int tex, char* name, int* width, int* height)
 	return false;
     memcpy (name, textures[tex]->name, 8);
     name[8] = 0;
-    *width = textures[tex]->width;
+    // The width the texture repeats at: R_GetColumn masks the column.
+    *width = texturewidthmask[tex] + 1;
     *height = textures[tex]->height;
     return true;
 }

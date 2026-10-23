@@ -178,6 +178,8 @@ static int AddWall (dh_wall_t* walls, int max, int count,
 	return count+1;
 
     side = &sides[line->sidenum[sidenum]];
+    // What the renderer draws: wall animation shows through here.
+    texture = texturetranslation[texture];
     a = sidenum ? line->v2 : line->v1;
     b = sidenum ? line->v1 : line->v2;
     length = hypotf (Units (b->x - a->x), Units (b->y - a->y));

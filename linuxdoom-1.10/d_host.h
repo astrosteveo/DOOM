@@ -70,7 +70,7 @@ typedef struct
     float	x1, y1, x2, y2;
     float	bottom, top;
     float	u1, u2, v1, v2;
-    int		texture;
+    int		texture;	// as drawn: animation applied
     int		light;		// the sector's light level, 0 to 255
 } dh_wall_t;
 
@@ -91,6 +91,8 @@ typedef struct
 int		DH_GetThings (dh_thing_t* things, int max);
 
 // A wall texture's name and size; 0 when there is no such texture.
+// The width is the one it repeats at, which is less than the width
+// it is built at when that isn't a power of two.
 int		DH_TextureInfo (int tex, char name[9], int* width, int* height);
 
 // A wall texture as width*height RGBA pixels, row by row from the
