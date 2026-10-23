@@ -75,6 +75,7 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include "r_local.h"
 
 
+#include "d_iwad.h"
 #include "d_main.h"
 
 //
@@ -150,7 +151,7 @@ int 		eventtail;
 void D_PostEvent (event_t* ev)
 {
     events[eventhead] = *ev;
-    eventhead = (++eventhead)&(MAXEVENTS-1);
+    eventhead = (eventhead+1)&(MAXEVENTS-1);
 }
 
 
@@ -167,7 +168,7 @@ void D_ProcessEvents (void)
 	 && (W_CheckNumForName("map01")<0) )
       return;
 	
-    for ( ; eventtail != eventhead ; eventtail = (++eventtail)&(MAXEVENTS-1) )
+    for ( ; eventtail != eventhead ; eventtail = (eventtail+1)&(MAXEVENTS-1) )
     {
 	ev = &events[eventtail];
 	if (M_Responder (ev))
@@ -334,6 +335,8 @@ void D_Display (void)
 	{
 	    nowtime = I_GetTime ();
 	    tics = nowtime - wipestart;
+	    if (!tics)
+		I_Sleep (1);
 	} while (!tics);
 	wipestart = nowtime;
 	done = wipe_ScreenWipe(wipe_Melt
@@ -562,158 +565,32 @@ void D_AddFile (char *file)
 //
 void IdentifyVersion (void)
 {
+    char*	iwad;
 
-    char*	doom1wad;
-    char*	doomwad;
-    char*	doomuwad;
-    char*	doom2wad;
+    snprintf (basedefault, sizeof(basedefault), "%s/" PROGRAM_NAME ".cfg",
+	      I_ConfigDir ());
 
-    char*	doom2fwad;
-    char*	plutoniawad;
-    char*	tntwad;
-
-#ifdef NORMALUNIX
-    char *home;
-    char *doomwaddir;
-    doomwaddir = getenv("DOOMWADDIR");
-    if (!doomwaddir)
-	doomwaddir = ".";
-
-    // Commercial.
-    doom2wad = malloc(strlen(doomwaddir)+1+9+1);
-    sprintf(doom2wad, "%s/doom2.wad", doomwaddir);
-
-    // Retail.
-    doomuwad = malloc(strlen(doomwaddir)+1+8+1);
-    sprintf(doomuwad, "%s/doomu.wad", doomwaddir);
-    
-    // Registered.
-    doomwad = malloc(strlen(doomwaddir)+1+8+1);
-    sprintf(doomwad, "%s/doom.wad", doomwaddir);
-    
-    // Shareware.
-    doom1wad = malloc(strlen(doomwaddir)+1+9+1);
-    sprintf(doom1wad, "%s/doom1.wad", doomwaddir);
-
-     // Bug, dear Shawn.
-    // Insufficient malloc, caused spurious realloc errors.
-    plutoniawad = malloc(strlen(doomwaddir)+1+/*9*/12+1);
-    sprintf(plutoniawad, "%s/plutonia.wad", doomwaddir);
-
-    tntwad = malloc(strlen(doomwaddir)+1+9+1);
-    sprintf(tntwad, "%s/tnt.wad", doomwaddir);
-
-
-    // French stuff.
-    doom2fwad = malloc(strlen(doomwaddir)+1+10+1);
-    sprintf(doom2fwad, "%s/doom2f.wad", doomwaddir);
-
-    home = getenv("HOME");
-    if (!home)
-      I_Error("Please set $HOME to your home directory");
-    sprintf(basedefault, "%s/.doomrc", home);
-#endif
-
-    if (M_CheckParm ("-shdev"))
+    iwad = D_FindIWAD ();
+    if (!iwad && !M_CheckParm ("-file"))
+	I_Error ("No IWAD found.\n\n"
+		 "Copy doom.wad, doom2.wad or another IWAD into\n"
+		 "%s\n"
+		 "or point -iwad or $DOOMWADDIR at it. Steam installs\n"
+		 "of DOOM and DOOM II are found automatically.",
+		 I_DataDir ());
+    if (!iwad)
     {
-	gamemode = shareware;
-	devparm = true;
-	D_AddFile (DEVDATA"doom1.wad");
-	D_AddFile (DEVMAPS"data_se/texture1.lmp");
-	D_AddFile (DEVMAPS"data_se/pnames.lmp");
-	strcpy (basedefault,DEVDATA"default.cfg");
+	printf("Game mode indeterminate.\n");
+	gamemode = indetermined;
+
+	// We don't abort. Let's see what the PWAD contains.
 	return;
     }
 
-    if (M_CheckParm ("-regdev"))
-    {
-	gamemode = registered;
-	devparm = true;
-	D_AddFile (DEVDATA"doom.wad");
-	D_AddFile (DEVMAPS"data_se/texture1.lmp");
-	D_AddFile (DEVMAPS"data_se/texture2.lmp");
-	D_AddFile (DEVMAPS"data_se/pnames.lmp");
-	strcpy (basedefault,DEVDATA"default.cfg");
-	return;
-    }
-
-    if (M_CheckParm ("-comdev"))
-    {
-	gamemode = commercial;
-	devparm = true;
-	/* I don't bother
-	if(plutonia)
-	    D_AddFile (DEVDATA"plutonia.wad");
-	else if(tnt)
-	    D_AddFile (DEVDATA"tnt.wad");
-	else*/
-	    D_AddFile (DEVDATA"doom2.wad");
-	    
-	D_AddFile (DEVMAPS"cdata/texture1.lmp");
-	D_AddFile (DEVMAPS"cdata/pnames.lmp");
-	strcpy (basedefault,DEVDATA"default.cfg");
-	return;
-    }
-
-    if ( !access (doom2fwad,R_OK) )
-    {
-	gamemode = commercial;
-	// C'est ridicule!
-	// Let's handle languages in config files, okay?
-	language = french;
+    printf ("IWAD: %s\n", iwad);
+    if (language == french)
 	printf("French version\n");
-	D_AddFile (doom2fwad);
-	return;
-    }
-
-    if ( !access (doom2wad,R_OK) )
-    {
-	gamemode = commercial;
-	D_AddFile (doom2wad);
-	return;
-    }
-
-    if ( !access (plutoniawad, R_OK ) )
-    {
-      gamemode = commercial;
-      D_AddFile (plutoniawad);
-      return;
-    }
-
-    if ( !access ( tntwad, R_OK ) )
-    {
-      gamemode = commercial;
-      D_AddFile (tntwad);
-      return;
-    }
-
-    if ( !access (doomuwad,R_OK) )
-    {
-      gamemode = retail;
-      D_AddFile (doomuwad);
-      return;
-    }
-
-    if ( !access (doomwad,R_OK) )
-    {
-      gamemode = registered;
-      D_AddFile (doomwad);
-      return;
-    }
-
-    if ( !access (doom1wad,R_OK) )
-    {
-      gamemode = shareware;
-      D_AddFile (doom1wad);
-      return;
-    }
-
-    printf("Game mode indeterminate.\n");
-    gamemode = indetermined;
-
-    // We don't abort. Let's see what the PWAD contains.
-    //exit(1);
-    //I_Error ("Game mode indeterminate\n");
+    D_AddFile (iwad);
 }
 
 //
@@ -796,7 +673,7 @@ void FindResponseFile (void)
 void D_DoomMain (void)
 {
     int             p;
-    char                    file[256];
+    char                    file[1024];
 
     FindResponseFile ();
 	
@@ -814,8 +691,23 @@ void D_DoomMain (void)
     else if (M_CheckParm ("-deathmatch"))
 	deathmatch = 1;
 
-    switch ( gamemode )
+    switch ( gamemission == pack_plut || gamemission == pack_tnt
+	     ? (int)gamemission + 100 : (int)gamemode )
     {
+      case pack_plut + 100:
+	sprintf (title,
+		 "                   "
+		 "DOOM 2: Plutonia Experiment v%i.%i"
+		 "                           ",
+		 VERSION/100,VERSION%100);
+	break;
+      case pack_tnt + 100:
+	sprintf (title,
+		 "                     "
+		 "DOOM 2: TNT - Evilution v%i.%i"
+		 "                           ",
+		 VERSION/100,VERSION%100);
+	break;
       case retail:
 	sprintf (title,
 		 "                         "
@@ -844,22 +736,6 @@ void D_DoomMain (void)
 		 "                           ",
 		 VERSION/100,VERSION%100);
 	break;
-/*FIXME
-       case pack_plut:
-	sprintf (title,
-		 "                   "
-		 "DOOM 2: Plutonia Experiment v%i.%i"
-		 "                           ",
-		 VERSION/100,VERSION%100);
-	break;
-      case pack_tnt:
-	sprintf (title,
-		 "                     "
-		 "DOOM 2: TNT - Evilution v%i.%i"
-		 "                           ",
-		 VERSION/100,VERSION%100);
-	break;
-*/
       default:
 	sprintf (title,
 		 "                     "
@@ -874,12 +750,6 @@ void D_DoomMain (void)
     if (devparm)
 	printf(D_DEVSTR);
     
-    if (M_CheckParm("-cdrom"))
-    {
-	printf(D_CDROM);
-	mkdir("c:\\doomdata",0);
-	strcpy (basedefault,"c:/doomdata/default.cfg");
-    }	
     
     // turbo option
     if ( (p=M_CheckParm ("-turbo")) )
@@ -1104,7 +974,7 @@ void D_DoomMain (void)
     D_CheckNetGame ();
 
     printf ("S_Init: Setting up sound.\n");
-    S_Init (snd_SfxVolume /* *8 */, snd_MusicVolume /* *8*/ );
+    S_Init (sfxVolume*8, musicVolume*8);
 
     printf ("HU_Init: Setting up heads up display.\n");
     HU_Init ();
@@ -1116,11 +986,9 @@ void D_DoomMain (void)
     p = M_CheckParm ("-statcopy");
     if (p && p<myargc-1)
     {
-	// for statistics driver
-	extern  void*	statcopy;                            
-
-	statcopy = (void*)atoi(myargv[p+1]);
-	printf ("External statistics registered.\n");
+	// The DOS statistics driver passed a raw address to write
+	// intermission stats into; that has no meaning here.
+	printf ("-statcopy is not supported.\n");
     }
     
     // start the apropriate game based on parms
@@ -1150,10 +1018,7 @@ void D_DoomMain (void)
     p = M_CheckParm ("-loadgame");
     if (p && p < myargc-1)
     {
-	if (M_CheckParm("-cdrom"))
-	    sprintf(file, "c:\\doomdata\\"SAVEGAMENAME"%c.dsg",myargv[p+1][0]);
-	else
-	    sprintf(file, SAVEGAMENAME"%c.dsg",myargv[p+1][0]);
+	D_SaveGamePath (file, sizeof(file), myargv[p+1][0]-'0');
 	G_LoadGame (file);
     }
 	

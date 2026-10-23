@@ -37,6 +37,7 @@ rcsid[] = "$Id: m_menu.c,v 1.7 1997/02/03 22:45:10 b1 Exp $";
 #include "dstrings.h"
 
 #include "d_main.h"
+#include "d_iwad.h"
 
 #include "i_system.h"
 #include "i_video.h"
@@ -513,14 +514,11 @@ void M_ReadSaveStrings(void)
     int             handle;
     int             count;
     int             i;
-    char    name[256];
+    char    name[1024];
 	
     for (i = 0;i < load_end;i++)
     {
-	if (M_CheckParm("-cdrom"))
-	    sprintf(name,"c:\\doomdata\\"SAVEGAMENAME"%d.dsg",i);
-	else
-	    sprintf(name,SAVEGAMENAME"%d.dsg",i);
+	D_SaveGamePath (name, sizeof(name), i);
 
 	handle = open (name, O_RDONLY | 0, 0666);
 	if (handle == -1)
@@ -578,12 +576,9 @@ void M_DrawSaveLoadBorder(int x,int y)
 //
 void M_LoadSelect(int choice)
 {
-    char    name[256];
+    char    name[1024];
 	
-    if (M_CheckParm("-cdrom"))
-	sprintf(name,"c:\\doomdata\\"SAVEGAMENAME"%d.dsg",choice);
-    else
-	sprintf(name,SAVEGAMENAME"%d.dsg",choice);
+    D_SaveGamePath (name, sizeof(name), choice);
     G_LoadGame (name);
     M_ClearMenus ();
 }
@@ -802,10 +797,10 @@ void M_DrawSound(void)
     V_DrawPatchDirect (60,38,0,W_CacheLumpName("M_SVOL",PU_CACHE));
 
     M_DrawThermo(SoundDef.x,SoundDef.y+LINEHEIGHT*(sfx_vol+1),
-		 16,snd_SfxVolume);
+		 16,sfxVolume);
 
     M_DrawThermo(SoundDef.x,SoundDef.y+LINEHEIGHT*(music_vol+1),
-		 16,snd_MusicVolume);
+		 16,musicVolume);
 }
 
 void M_Sound(int choice)
@@ -818,16 +813,16 @@ void M_SfxVol(int choice)
     switch(choice)
     {
       case 0:
-	if (snd_SfxVolume)
-	    snd_SfxVolume--;
+	if (sfxVolume)
+	    sfxVolume--;
 	break;
       case 1:
-	if (snd_SfxVolume < 15)
-	    snd_SfxVolume++;
+	if (sfxVolume < 15)
+	    sfxVolume++;
 	break;
     }
 	
-    S_SetSfxVolume(snd_SfxVolume /* *8 */);
+    S_SetSfxVolume(sfxVolume*8);
 }
 
 void M_MusicVol(int choice)
@@ -835,16 +830,16 @@ void M_MusicVol(int choice)
     switch(choice)
     {
       case 0:
-	if (snd_MusicVolume)
-	    snd_MusicVolume--;
+	if (musicVolume)
+	    musicVolume--;
 	break;
       case 1:
-	if (snd_MusicVolume < 15)
-	    snd_MusicVolume++;
+	if (musicVolume < 15)
+	    musicVolume++;
 	break;
     }
 	
-    S_SetMusicVolume(snd_MusicVolume /* *8 */);
+    S_SetMusicVolume(musicVolume*8);
 }
 
 

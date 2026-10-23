@@ -451,19 +451,15 @@ void HU_Start(void)
 	s = HU_TITLE;
 	break;
 
-/* FIXME
-      case pack_plut:
-	s = HU_TITLEP;
-	break;
-      case pack_tnt:
-	s = HU_TITLET;
-	break;
-*/
-	
       case commercial:
       default:
-	 s = HU_TITLE2;
-	 break;
+	if (gamemission == pack_plut)
+	    s = HU_TITLEP;
+	else if (gamemission == pack_tnt)
+	    s = HU_TITLET;
+	else
+	    s = HU_TITLE2;
+	break;
     }
     
     while (*s)

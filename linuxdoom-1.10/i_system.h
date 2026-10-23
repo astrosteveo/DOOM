@@ -24,6 +24,7 @@
 #define __I_SYSTEM__
 
 #include "d_ticcmd.h"
+#include "m_fixed.h"
 #include "d_event.h"
 
 #ifdef __GNUG__
@@ -43,6 +44,13 @@ byte*	I_ZoneBase (int *size);
 // Called by D_DoomLoop,
 // returns current time in tics.
 int I_GetTime (void);
+
+// How far into the current tic we are, 0..FRACUNIT-1.
+// Used to interpolate rendering between tics.
+fixed_t I_GetTimeFrac (void);
+
+// Yield the CPU for about ms milliseconds.
+void I_Sleep (int ms);
 
 
 //
@@ -86,7 +94,12 @@ byte* I_AllocLow (int length);
 void I_Tactile (int on, int off, int total);
 
 
-void I_Error (char *error, ...);
+void I_Error (char *error, ...) __attribute__((format(printf, 1, 2), noreturn));
+
+// Per-user directories (created on first use), without trailing slash.
+char* I_ConfigDir (void);
+char* I_DataDir (void);
+void I_MakeDirectory (const char* path);
 
 
 #endif

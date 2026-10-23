@@ -30,7 +30,11 @@
 // Global parameters/defines.
 //
 // DOOM version
-enum { VERSION =  110 };
+enum { VERSION =  109 };
+
+// Name used for the executable, window title and per-user directories.
+#define PROGRAM_NAME	"linuxdoom"
+#define PROGRAM_TITLE	"Linux DOOM"
 
 
 // Game mode handling - identify IWAD version
@@ -278,6 +282,15 @@ typedef enum
 #define KEY_RALT	(0x80+0x38)
 
 #define KEY_LALT	KEY_RALT
+
+// Extra keys, numbered after their PC scan codes like the ones above.
+#define KEY_CAPSLOCK	(0x80+0x3a)
+#define KEY_HOME	(0x80+0x47)
+#define KEY_PGUP	(0x80+0x49)
+#define KEY_END		(0x80+0x4f)
+#define KEY_PGDN	(0x80+0x51)
+#define KEY_INS		(0x80+0x52)
+#define KEY_DEL		(0x80+0x53)
 
 
 

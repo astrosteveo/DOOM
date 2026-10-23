@@ -43,6 +43,7 @@ rcsid[] = "$Id: g_game.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include "p_tick.h"
 
 #include "d_main.h"
+#include "d_iwad.h"
 
 #include "wi_stuff.h"
 #include "hu_stuff.h"
@@ -71,7 +72,6 @@ rcsid[] = "$Id: g_game.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include "g_game.h"
 
 
-#define SAVEGAMESIZE	0x2c000
 #define SAVESTRINGSIZE	24
 
 
@@ -455,9 +455,7 @@ void G_DoLoadLevel (void)
 
     // DOOM determines the sky texture to be used
     // depending on the current episode, and the game version.
-    if ( (gamemode == commercial)
-	 || ( gamemode == pack_tnt )
-	 || ( gamemode == pack_plut ) )
+    if (gamemode == commercial)
     {
 	skytexture = R_TextureNumForName ("SKY3");
 	if (gamemap < 12)
@@ -492,8 +490,8 @@ void G_DoLoadLevel (void)
     joyxmove = joyymove = 0; 
     mousex = mousey = 0; 
     sendpause = sendsave = paused = false; 
-    memset (mousebuttons, 0, sizeof(mousebuttons)); 
-    memset (joybuttons, 0, sizeof(joybuttons)); 
+    memset (mousearray, 0, sizeof(mousearray)); 
+    memset (joyarray, 0, sizeof(joyarray)); 
 } 
  
  
@@ -1187,7 +1185,7 @@ void G_DoWorldDone (void)
 extern boolean setsizeneeded;
 void R_ExecuteSetViewSize (void);
 
-char	savename[256];
+char	savename[1024];
 
 void G_LoadGame (char* name) 
 { 
@@ -1267,21 +1265,42 @@ G_SaveGame
     sendsave = true; 
 } 
  
+//
+// G_SaveGameSize
+// An upper bound on the size of the savegame for the current level.
+// The original saved into a fixed buffer and gave up past 0x2c000
+// bytes, which big levels can exceed.
+//
+static int G_SaveGameSize (void)
+{
+    thinker_t*	th;
+    int		size;
+
+    size = SAVESTRINGSIZE + VERSIONSIZE + 3 + MAXPLAYERS + 3;
+    size += MAXPLAYERS * (3 + 280);		// padding and player_t
+    size += numsectors * 7*2;
+    size += numlines * (3*2 + 2*5*2);
+    for (th = thinkercap.next ; th != &thinkercap ; th=th->next)
+	size += 1 + 3 + 156;			// class, padding, largest record
+    size += 3;					// end markers
+    return size;
+}
+
 void G_DoSaveGame (void) 
 { 
-    char	name[100]; 
+    char	name[1024]; 
     char	name2[VERSIONSIZE]; 
     char*	description; 
     int		length; 
     int		i; 
+    int		size;
 	
-    if (M_CheckParm("-cdrom"))
-	sprintf(name,"c:\\doomdata\\"SAVEGAMENAME"%d.dsg",savegameslot);
-    else
-	sprintf (name,SAVEGAMENAME"%d.dsg",savegameslot); 
+    D_SaveGamePath (name, sizeof(name), savegameslot);
     description = savedescription; 
 	 
-    save_p = savebuffer = screens[1]+0x4000; 
+    size = G_SaveGameSize ();
+    save_p = savebuffer = Z_Malloc (size, PU_STATIC, NULL);
+	 
 	 
     memcpy (save_p, description, SAVESTRINGSIZE); 
     save_p += SAVESTRINGSIZE; 
@@ -1307,9 +1326,10 @@ void G_DoSaveGame (void)
     *save_p++ = 0x1d;		// consistancy marker 
 	 
     length = save_p - savebuffer; 
-    if (length > SAVEGAMESIZE) 
+    if (length > size) 
 	I_Error ("Savegame buffer overrun"); 
     M_WriteFile (name, savebuffer, length); 
+    Z_Free (savebuffer);
     gameaction = ga_nothing; 
     savedescription[0] = 0;		 
 	 

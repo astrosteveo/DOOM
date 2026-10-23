@@ -31,16 +31,28 @@
 #ifdef __cplusplus
 typedef bool boolean;
 #else
-typedef enum {false, true} boolean;
+// Same size and values as the original enum {false, true}, but
+// compatible with <stdbool.h>, which SDL and C23 bring along.
+#include <stdbool.h>
+typedef int boolean;
 #endif
 typedef unsigned char byte;
 #endif
 
 
-// Predefined with some OS.
-#ifdef LINUX
-#include <values.h>
-#else
+#include <stdint.h>
+#include <limits.h>
+
+// The engine assumes 32-bit int; these keep their DOS meanings
+// regardless of the host's long size.
+#undef MAXCHAR
+#undef MAXSHORT
+#undef MAXINT
+#undef MAXLONG
+#undef MINCHAR
+#undef MINSHORT
+#undef MININT
+#undef MINLONG
 #define MAXCHAR		((char)0x7f)
 #define MAXSHORT	((short)0x7fff)
 
@@ -53,7 +65,6 @@ typedef unsigned char byte;
 // Max negative 32-bit integer.
 #define MININT		((int)0x80000000)	
 #define MINLONG		((long)0x80000000)
-#endif
 
 
 

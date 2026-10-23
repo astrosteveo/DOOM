@@ -66,7 +66,6 @@ const char snd_prefixen[]
 // Adjustable by menu.
 #define NORM_VOLUME    		snd_MaxVolume
 
-#define NORM_PITCH     		128
 #define NORM_PRIORITY		64
 #define NORM_SEP		128
 
@@ -110,10 +109,13 @@ static channel_t*	channels;
 // These are not used, but should be (menu).
 // Maximum volume of a sound effect.
 // Internal default is max out of 0-15.
-int 		snd_SfxVolume = 15;
+int 		snd_SfxVolume = 15*8;
 
 // Maximum volume of music. Useless so far.
-int 		snd_MusicVolume = 15; 
+int 		snd_MusicVolume = 15*8; 
+
+int		sfxVolume = 8;
+int		musicVolume = 8;
 
 
 

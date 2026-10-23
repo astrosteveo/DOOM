@@ -25,17 +25,13 @@
 
 #include "doomdef.h"
 
-// UNIX hack, to be removed.
-#ifdef SNDSERV
-#include <stdio.h>
-extern FILE* sndserver;
-extern char* sndserver_filename;
-#endif
-
 #include "doomstat.h"
 #include "sounds.h"
 
 
+
+// The pitch s_sound passes for an unshifted sound.
+#define NORM_PITCH	128
 
 // Init at program start...
 void I_InitSound();
@@ -54,6 +50,8 @@ void I_ShutdownSound(void);
 
 // Initialize channels?
 void I_SetChannels();
+
+void I_SetSfxVolume(int volume);
 
 // Get raw data lump index for sound descriptor.
 int I_GetSfxLumpNum (sfxinfo_t* sfxinfo );

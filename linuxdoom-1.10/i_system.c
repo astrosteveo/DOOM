@@ -1,4 +1,4 @@
-// Emacs style mode select   -*- C++ -*- 
+// Emacs style mode select   -*- C++ -*-
 //-----------------------------------------------------------------------------
 //
 // $Id:$
@@ -6,33 +6,32 @@
 // Copyright (C) 1993-1996 by id Software, Inc.
 //
 // This source is available for distribution and/or modification
-// only under the terms of the DOOM Source Code License as
-// published by id Software. All rights reserved.
+// only under the terms of the GNU General Public License 2.0.
 //
 // The source is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
-// FITNESS FOR A PARTICULAR PURPOSE. See the DOOM Source Code License
+// FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
 // for more details.
 //
 // $Log:$
 //
 // DESCRIPTION:
+//	System interface: timing, memory, paths, and fatal errors,
+//	on top of SDL3.
 //
 //-----------------------------------------------------------------------------
-
-static const char
-rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
-
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-
 #include <stdarg.h>
-#include <sys/time.h>
-#include <unistd.h>
+#include <errno.h>
+#include <sys/stat.h>
+
+#include <SDL3/SDL.h>
 
 #include "doomdef.h"
+#include "m_argv.h"
 #include "m_misc.h"
 #include "i_video.h"
 #include "i_sound.h"
@@ -48,7 +47,9 @@ rcsid[] = "$Id: m_bbox.c,v 1.1 1997/02/03 22:45:10 b1 Exp $";
 
 
 
-int	mb_used = 6;
+// Zone size in megabytes. The original 6MB was sized for DOS;
+// high resolution rendering and large PWADs want far more.
+int	mb_used = 64;
 
 
 void
@@ -75,28 +76,66 @@ int  I_GetHeapSize (void)
 
 byte* I_ZoneBase (int*	size)
 {
+    int		p;
+    byte*	zone;
+
+    p = M_CheckParm ("-mb");
+    if (p && p < myargc-1)
+	mb_used = atoi (myargv[p+1]);
+    if (mb_used < 8)
+	mb_used = 8;
+
     *size = mb_used*1024*1024;
-    return (byte *) malloc (*size);
+    zone = (byte *) malloc (*size);
+    if (!zone)
+	I_Error ("I_ZoneBase: could not allocate %d MB", mb_used);
+    return zone;
 }
 
 
 
 //
 // I_GetTime
-// returns time in 1/70th second tics
+// returns time in 1/35th second tics
 //
+static Uint64	basetime;
+
 int  I_GetTime (void)
 {
-    struct timeval	tp;
-    struct timezone	tzp;
-    int			newtics;
-    static int		basetime=0;
-  
-    gettimeofday(&tp, &tzp);
+    Uint64	now;
+
+    now = SDL_GetTicksNS ();
     if (!basetime)
-	basetime = tp.tv_sec;
-    newtics = (tp.tv_sec-basetime)*TICRATE + tp.tv_usec*TICRATE/1000000;
-    return newtics;
+	basetime = now;
+
+    return (int)((now - basetime) * TICRATE / SDL_NS_PER_SECOND);
+}
+
+//
+// I_GetTimeFrac
+// Fraction of the way through the current tic, 0..FRACUNIT-1.
+//
+fixed_t I_GetTimeFrac (void)
+{
+    Uint64	now;
+    Uint64	tics;
+
+    now = SDL_GetTicksNS ();
+    if (!basetime)
+	basetime = now;
+
+    tics = (now - basetime) * TICRATE;
+    return (fixed_t)((tics % SDL_NS_PER_SECOND) * FRACUNIT / SDL_NS_PER_SECOND);
+}
+
+
+//
+// I_Sleep
+// Gives the CPU back while waiting for the next tic.
+//
+void I_Sleep (int ms)
+{
+    SDL_Delay (ms);
 }
 
 
@@ -106,6 +145,9 @@ int  I_GetTime (void)
 //
 void I_Init (void)
 {
+    if (!SDL_Init (SDL_INIT_EVENTS))
+	I_Error ("I_Init: SDL_Init failed: %s", SDL_GetError ());
+
     I_InitSound();
     //  I_InitGraphics();
 }
@@ -120,20 +162,13 @@ void I_Quit (void)
     I_ShutdownMusic();
     M_SaveDefaults ();
     I_ShutdownGraphics();
+    SDL_Quit ();
     exit(0);
 }
 
 void I_WaitVBL(int count)
 {
-#ifdef SGI
-    sginap(1);                                           
-#else
-#ifdef SUN
-    sleep(0);
-#else
-    usleep (count * (1000000/70) );                                
-#endif
-#endif
+    SDL_Delay (count * 1000/70);
 }
 
 void I_BeginRead(void)
@@ -147,11 +182,83 @@ void I_EndRead(void)
 byte*	I_AllocLow(int length)
 {
     byte*	mem;
-        
-    mem = (byte *)malloc (length);
-    memset (mem,0,length);
+
+    mem = (byte *)calloc (1, length);
+    if (!mem)
+	I_Error ("I_AllocLow: could not allocate %d bytes", length);
     return mem;
 }
+
+
+
+//
+// PATHS
+// Configuration lives under $XDG_CONFIG_HOME, savegames and other
+// generated data under $XDG_DATA_HOME, as the XDG base directory
+// specification asks.
+//
+
+//
+// I_MakeDirectory
+// Creates a directory and any missing parents.
+//
+void I_MakeDirectory (const char* path)
+{
+    char	buf[1024];
+    char*	p;
+
+    snprintf (buf, sizeof(buf), "%s", path);
+    for (p = buf+1 ; *p ; p++)
+    {
+	if (*p != '/')
+	    continue;
+	*p = 0;
+	mkdir (buf, 0755);
+	*p = '/';
+    }
+    if (mkdir (buf, 0755) && errno != EEXIST)
+	fprintf (stderr, "I_MakeDirectory: could not create %s\n", buf);
+}
+
+static char* XDGDir (const char* var, const char* fallback)
+{
+    char	buf[1024];
+    char*	base;
+    char*	home;
+
+    base = getenv (var);
+    if (base && base[0] == '/')
+	snprintf (buf, sizeof(buf), "%s/" PROGRAM_NAME, base);
+    else
+    {
+	home = getenv ("HOME");
+	if (!home)
+	    I_Error ("Please set $HOME to your home directory");
+	snprintf (buf, sizeof(buf), "%s/%s/" PROGRAM_NAME, home, fallback);
+    }
+
+    I_MakeDirectory (buf);
+    return strdup (buf);
+}
+
+char* I_ConfigDir (void)
+{
+    static char*	dir;
+
+    if (!dir)
+	dir = XDGDir ("XDG_CONFIG_HOME", ".config");
+    return dir;
+}
+
+char* I_DataDir (void)
+{
+    static char*	dir;
+
+    if (!dir)
+	dir = XDGDir ("XDG_DATA_HOME", ".local/share");
+    return dir;
+}
+
 
 
 //
@@ -161,23 +268,34 @@ extern boolean demorecording;
 
 void I_Error (char *error, ...)
 {
-    va_list	argptr;
+    static boolean	inerror;
+    va_list		argptr;
+    char		msg[1024];
 
     // Message first.
     va_start (argptr,error);
-    fprintf (stderr, "Error: ");
-    vfprintf (stderr,error,argptr);
-    fprintf (stderr, "\n");
+    vsnprintf (msg, sizeof(msg), error, argptr);
     va_end (argptr);
 
+    fprintf (stderr, "Error: %s\n", msg);
     fflush( stderr );
+
+    // An error during shutdown must not recurse.
+    if (inerror)
+	exit(-1);
+    inerror = true;
 
     // Shutdown. Here might be other errors.
     if (demorecording)
 	G_CheckDemoStatus();
 
     D_QuitNetGame ();
+    I_ShutdownSound ();
     I_ShutdownGraphics();
-    
+
+    if (!M_CheckParm ("-nogui"))
+	SDL_ShowSimpleMessageBox (SDL_MESSAGEBOX_ERROR, PROGRAM_TITLE, msg, NULL);
+
+    SDL_Quit ();
     exit(-1);
 }

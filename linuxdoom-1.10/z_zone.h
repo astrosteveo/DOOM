@@ -55,9 +55,13 @@ void    Z_ChangeTag2 (void *ptr, int tag);
 int     Z_FreeMemory (void);
 
 
+// Aligned so that every block (and the data after its header)
+// stays 16-byte aligned on 64-bit hosts.
+#define ZONEALIGN	16
+
 typedef struct memblock_s
 {
-    int			size;	// including the header and possibly tiny fragments
+    _Alignas(ZONEALIGN) int size;	// including the header and possibly tiny fragments
     void**		user;	// NULL if a free block
     int			tag;	// purgelevel
     int			id;	// should be ZONEID
