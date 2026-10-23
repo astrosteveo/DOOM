@@ -88,6 +88,13 @@ static float*		mixbuffer;
 static short*		musicbuffer;
 static int		mixbufferframes;
 
+// Several OPL waveforms are positive only, so the chip's output sits
+// well off zero; sound cards took that out with a capacitor. This is
+// the same thing, a high-pass filter at about 10Hz.
+static float		dcblockcoef;
+static float		dcblockin[2];
+static float		dcblockout[2];
+
 
 //
 // LoadSfx
@@ -270,7 +277,14 @@ static void SDLCALL AudioCallback (void* userdata, SDL_AudioStream* astream,
 	{
 	    OPLMUS_Render (musicbuffer, chunk);
 	    for (i=0 ; i<chunk*2 ; i++)
-		mixbuffer[i] += musicbuffer[i] * (MUSIC_GAIN / 32768.0f);
+	    {
+		float	in = musicbuffer[i] * (MUSIC_GAIN / 32768.0f);
+		float	out = in - dcblockin[i&1] + dcblockcoef * dcblockout[i&1];
+
+		dcblockin[i&1] = in;
+		dcblockout[i&1] = out;
+		mixbuffer[i] += out;
+	    }
 	}
 
 	// Soft clip rather than wrap or square off.
@@ -475,6 +489,8 @@ I_InitSound()
     spec.format = SDL_AUDIO_F32;
     spec.channels = 2;
     spec.freq = outrate;
+
+    dcblockcoef = 1.0f - 2.0f * 3.14159265f * 10.0f / outrate;
 
     mixbufferframes = 1024;
     mixbuffer = malloc (mixbufferframes * 2 * sizeof(float));
