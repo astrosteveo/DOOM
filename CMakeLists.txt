@@ -30,6 +30,7 @@ add_executable(linuxdoom
   ${SRC}/f_wipe.c
   ${SRC}/d_main.c
   ${SRC}/d_iwad.c
+  ${SRC}/d_statehash.c
   ${SRC}/d_net.c
   ${SRC}/d_items.c
   ${SRC}/g_game.c

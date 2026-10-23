@@ -76,6 +76,7 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 
 
 #include "d_iwad.h"
+#include "d_statehash.h"
 #include "d_main.h"
 
 //
@@ -682,6 +683,8 @@ void D_DoomMain (void)
     setbuf (stdout, NULL);
     modifiedgame = false;
 	
+    D_InitStateHash ();
+
     nomonsters = M_CheckParm ("-nomonsters");
     respawnparm = M_CheckParm ("-respawn");
     fastparm = M_CheckParm ("-fast");

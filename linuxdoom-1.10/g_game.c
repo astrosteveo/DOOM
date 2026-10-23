@@ -44,6 +44,7 @@ rcsid[] = "$Id: g_game.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 
 #include "d_main.h"
 #include "d_iwad.h"
+#include "d_statehash.h"
 
 #include "wi_stuff.h"
 #include "hu_stuff.h"
@@ -743,6 +744,8 @@ void G_Ticker (void)
 	D_PageTicker (); 
 	break; 
     }        
+
+    D_LogStateHash ();
 } 
  
  
