@@ -32,6 +32,11 @@ Two parts, to find out cheaply whether this works:
 2. **A level shows in Godot.** E1M1's walls built as one mesh with the original textures, the things shown as
    boxes, and the camera following the demo's player.
 
+**Result (October 2026): both parts work.** Played through `tools/run_demo.gd`, the three shareware demos log the
+same `-hashlog` as the SDL3 build on every tic (5026, 3836 and 2134 tics, under a second each). `main.tscn` shows
+the demos' levels with their walls and original textures, the things as boxes and the camera at the player's eye;
+at tics 3 and 403 of demo1 it shows the same view as the SDL3 build's `-shotat`, wider for the wider window.
+
 ## After it
 
 1. Floors and ceilings: polygons rebuilt from the BSP tree, since Doom never stored them. Sky.
