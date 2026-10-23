@@ -4,7 +4,8 @@ extends Node3D
 ## its walls as one mesh with a surface per texture, its floors and
 ## ceilings as a node per sector for each, lit by their sectors' light
 ## levels as Doom draws them unshaded; the sky where Doom shows it; and
-## its things as boxes their size for now.
+## its things as boxes their size for now. Light lives in a texture, so
+## a change of light rebuilds nothing.
 
 const MT_PLAYER := 0
 const MF_NOSECTOR := 8	# invisible things, such as teleport exits
@@ -21,10 +22,9 @@ const LIGHT_ROWS := 128
 @onready var planes: Node3D = %Planes
 @onready var things: MultiMeshInstance3D = %Things
 
-var _materials: Dictionary[int, StandardMaterial3D] = {}
+var _materials: Dictionary[int, ShaderMaterial] = {}
 var _coords := PackedFloat32Array()
 var _textures := PackedInt32Array()
-var _lights := PackedInt32Array()
 
 var _flat_materials: Dictionary[int, ShaderMaterial] = {}
 var _sky_material := ShaderMaterial.new()
@@ -61,17 +61,17 @@ func build(sim: DoomSim) -> void:
 	update_things(sim)
 
 
-## Rebuilds the walls if doors, lifts, switches, lights or animated
-## textures have changed any of them since the last build.
+## Rebuilds the walls if doors, lifts, switches or animated textures
+## have changed any of them since the last build.
 func update_walls(sim: DoomSim) -> void:
 	var data := sim.get_walls()
-	if data["coords"] != _coords or data["textures"] != _textures or data["lights"] != _lights:
+	if data["coords"] != _coords or data["textures"] != _textures:
 		_build_walls(sim, data)
 
 
 ## Moves floors and ceilings to their sectors' heights, changes their
-## flats where they animate, and their light where it changes. Nothing
-## is rebuilt.
+## flats where they animate, and updates the light texture, which walls
+## and planes read, where lights change. Nothing is rebuilt.
 func update_planes(sim: DoomSim) -> void:
 	var data := sim.get_sectors()
 	var heights: PackedFloat32Array = data["heights"]
@@ -127,21 +127,20 @@ func update_things(sim: DoomSim) -> void:
 func _build_walls(sim: DoomSim, data: Dictionary) -> void:
 	var coords: PackedFloat32Array = data["coords"]
 	var textures: PackedInt32Array = data["textures"]
-	var lights: PackedInt32Array = data["lights"]
+	var sectors: PackedInt32Array = data["sectors"]
 	_coords = coords
 	_textures = textures
-	_lights = lights
 
-	# One surface per texture: positions, normals, uvs, colours.
+	# One surface per texture: positions, normals, uvs, sectors.
 	var surfaces: Dictionary[int, Array] = {}
 	for i in textures.size():
 		var texture := textures[i]
 		if not surfaces.has(texture):
-			surfaces[texture] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array(), PackedColorArray()]
+			surfaces[texture] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array(), PackedVector2Array()]
 		var size := Vector2.ONE
 		if texture != DoomSim.SKY:
-			size = Vector2(_material(sim, texture).albedo_texture.get_size())
-		_add_wall(surfaces[texture], coords, i * 10, size, lights[i])
+			size = _material(sim, texture).get_shader_parameter("albedo").get_size()
+		_add_wall(surfaces[texture], coords, i * 10, size, sectors[i])
 
 	var mesh := ArrayMesh.new()
 	for texture in surfaces:
@@ -150,7 +149,7 @@ func _build_walls(sim: DoomSim, data: Dictionary) -> void:
 		arrays[Mesh.ARRAY_VERTEX] = surfaces[texture][0]
 		arrays[Mesh.ARRAY_NORMAL] = surfaces[texture][1]
 		arrays[Mesh.ARRAY_TEX_UV] = surfaces[texture][2]
-		arrays[Mesh.ARRAY_COLOR] = surfaces[texture][3]
+		arrays[Mesh.ARRAY_TEX_UV2] = surfaces[texture][3]
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		var surface := mesh.get_surface_count() - 1
 		if texture == DoomSim.SKY:
@@ -164,7 +163,7 @@ func _build_walls(sim: DoomSim, data: Dictionary) -> void:
 
 ## One wall as two triangles, wound clockwise as seen from its front:
 ## the right of its direction, as in Doom. size is its texture's.
-func _add_wall(surface: Array, coords: PackedFloat32Array, c: int, size: Vector2, light: int) -> void:
+func _add_wall(surface: Array, coords: PackedFloat32Array, c: int, size: Vector2, sector: int) -> void:
 	var x1 := coords[c]
 	var y1 := coords[c + 1]
 	var x2 := coords[c + 2]
@@ -181,39 +180,27 @@ func _add_wall(surface: Array, coords: PackedFloat32Array, c: int, size: Vector2
 	var b_bottom := DoomSpace.point(x2, y2, bottom)
 	var a_bottom := DoomSpace.point(x1, y1, bottom)
 	var normal := Vector3(y2 - y1, 0.0, x2 - x1).normalized()
-	var shade := light / 255.0
-	var color := Color(shade, shade, shade)
 
 	var positions: PackedVector3Array = surface[0]
 	var normals: PackedVector3Array = surface[1]
 	var uvs: PackedVector2Array = surface[2]
-	var colors: PackedColorArray = surface[3]
+	var sectors: PackedVector2Array = surface[3]
 	positions.append_array([a_top, b_top, b_bottom, a_top, b_bottom, a_bottom])
 	uvs.append_array([Vector2(u1, v1), Vector2(u2, v1), Vector2(u2, v2), Vector2(u1, v1), Vector2(u2, v2), Vector2(u1, v2)])
 	for i in 6:
 		normals.append(normal)
-		colors.append(color)
+		sectors.append(Vector2(sector, 0.0))
 	# Packed arrays come out of an Array as copies: put them back.
 	surface[0] = positions
 	surface[1] = normals
 	surface[2] = uvs
-	surface[3] = colors
+	surface[3] = sectors
 
 
-func _material(sim: DoomSim, texture: int) -> StandardMaterial3D:
-	if _materials.has(texture):
-		return _materials[texture]
-	var image := sim.get_texture_image(texture)
-	image.generate_mipmaps()
-	var material := StandardMaterial3D.new()
-	material.resource_name = sim.get_texture_name(texture)
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.albedo_texture = ImageTexture.create_from_image(image)
-	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS
-	material.vertex_color_use_as_albedo = true
-	material.vertex_color_is_srgb = true
-	_materials[texture] = material
-	return material
+func _material(sim: DoomSim, texture: int) -> ShaderMaterial:
+	if not _materials.has(texture):
+		_materials[texture] = _surface_material(sim.get_texture_name(texture), sim.get_texture_image(texture))
+	return _materials[texture]
 
 
 ## A node for each sector's floor and ceiling, built at height 0 from
@@ -292,16 +279,19 @@ func _plane(triangles: PackedVector2Array, sector: int, is_floor: bool) -> MeshI
 func _flat_material(sim: DoomSim, flat: int) -> ShaderMaterial:
 	if flat == DoomSim.SKY:
 		return _sky_material
-	if _flat_materials.has(flat):
-		return _flat_materials[flat]
-	var image := sim.get_flat_image(flat)
+	if not _flat_materials.has(flat):
+		_flat_materials[flat] = _surface_material(sim.get_flat_name(flat), sim.get_flat_image(flat))
+	return _flat_materials[flat]
+
+
+## A wall texture or flat, lit by its sector's light.
+func _surface_material(label: String, image: Image) -> ShaderMaterial:
 	image.generate_mipmaps()
 	var material := ShaderMaterial.new()
-	material.resource_name = sim.get_flat_name(flat)
+	material.resource_name = label
 	material.shader = SURFACE_SHADER
 	material.set_shader_parameter("albedo", ImageTexture.create_from_image(image))
 	material.set_shader_parameter("sector_lights", _sector_lights_texture)
-	_flat_materials[flat] = material
 	return material
 
 

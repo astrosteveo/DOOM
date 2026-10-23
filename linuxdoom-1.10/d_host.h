@@ -80,7 +80,7 @@ typedef struct
     float	bottom, top;
     float	u1, u2, v1, v2;
     int		texture;	// as drawn: animation applied, or DH_SKY
-    int		light;		// the sector's light level, 0 to 255
+    int		sector;		// the one it faces, for its light
 } dh_wall_t;
 
 // Fills walls with up to max of the level's walls, and returns how

@@ -74,10 +74,10 @@ Dictionary DoomSim::get_walls() const {
 
 	PackedFloat32Array coords;
 	PackedInt32Array textures;
-	PackedInt32Array lights;
+	PackedInt32Array sectors;
 	coords.resize(count * 10);
 	textures.resize(count);
-	lights.resize(count);
+	sectors.resize(count);
 	for (int i = 0; i < count; i++) {
 		const dh_wall_t &w = walls[i];
 		const float values[10] = { w.x1, w.y1, w.x2, w.y2, w.bottom, w.top, w.u1, w.u2, w.v1, w.v2 };
@@ -85,12 +85,12 @@ Dictionary DoomSim::get_walls() const {
 			coords[i * 10 + j] = values[j];
 		}
 		textures[i] = w.texture;
-		lights[i] = w.light;
+		sectors[i] = w.sector;
 	}
 	// coords: x1, y1, x2, y2, bottom, top, u1, u2, v1, v2 for each wall.
 	d["coords"] = coords;
 	d["textures"] = textures;
-	d["lights"] = lights;
+	d["sectors"] = sectors;
 	return d;
 }
 

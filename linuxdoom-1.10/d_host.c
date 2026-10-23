@@ -199,7 +199,7 @@ static int AddWall (dh_wall_t* walls, int max, int count,
     w->v1 = Units (texturetop - top + side->rowoffset);
     w->v2 = Units (texturetop - bottom + side->rowoffset);
     w->texture = texture;
-    w->light = side->sector->lightlevel;
+    w->sector = side->sector - sectors;
     return count+1;
 }
 
