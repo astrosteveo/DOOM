@@ -33,6 +33,7 @@ func _physics_process(_delta: float) -> void:
 		camera.reset_physics_interpolation()
 	else:
 		level.update_walls(sim)
+		level.update_planes(sim)
 		level.update_things(sim)
 		_place_camera(state)
 

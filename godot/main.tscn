@@ -32,6 +32,9 @@ script = ExtResource("2")
 [node name="Walls" type="MeshInstance3D" parent="Level"]
 unique_name_in_owner = true
 
+[node name="Planes" type="Node3D" parent="Level"]
+unique_name_in_owner = true
+
 [node name="Things" type="MultiMeshInstance3D" parent="Level"]
 unique_name_in_owner = true
 multimesh = SubResource("things")
