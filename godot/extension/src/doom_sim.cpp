@@ -42,6 +42,82 @@ int DoomSim::tic() {
 	return DH_Tic();
 }
 
+static_assert(DoomSim::EVENT_KEY_DOWN == DH_KEYDOWN && DoomSim::EVENT_KEY_UP == DH_KEYUP && DoomSim::EVENT_MOUSE == DH_MOUSE,
+		"DoomSim's event types are d_host.h's");
+static_assert(DoomSim::CONTROL_FORWARD == DH_FORWARD && DoomSim::CONTROL_RUN == DH_RUN && DH_RUN + 1 == DH_NUMCONTROLS,
+		"DoomSim's controls are d_host.h's");
+
+int DoomSim::post_event(EventType p_type, int p_data1, int p_data2, int p_data3) {
+	ERR_FAIL_COND_V_MSG(!started, ERROR, "start() the game first.");
+	const dh_event_t event = { (int)p_type, p_data1, p_data2, p_data3 };
+	return DH_PostEvent(&event);
+}
+
+int DoomSim::get_control_key(Control p_control) const {
+	return started ? DH_ControlKey((int)p_control) : 0;
+}
+
+// Doom's key for a Godot key, by where it is on a US keyboard as
+// i_video.c's TranslateScancode has it, so that bindings like WASD stay
+// put whatever the layout: pass a physical keycode. 0 for keys Doom
+// doesn't have.
+int DoomSim::doom_key(Key p_key) {
+	if (p_key >= KEY_A && p_key <= KEY_Z) {
+		return 'a' + (p_key - KEY_A);
+	}
+	if (p_key >= KEY_0 && p_key <= KEY_9) {
+		return '0' + (p_key - KEY_0);
+	}
+	if (p_key >= KEY_KP_0 && p_key <= KEY_KP_9) {
+		return '0' + (p_key - KEY_KP_0);
+	}
+	if (p_key >= KEY_F1 && p_key <= KEY_F10) {
+		return DH_KEY_F1 + (p_key - KEY_F1);
+	}
+	switch (p_key) {
+		case KEY_LEFT: return DH_KEY_LEFTARROW;
+		case KEY_RIGHT: return DH_KEY_RIGHTARROW;
+		case KEY_UP: return DH_KEY_UPARROW;
+		case KEY_DOWN: return DH_KEY_DOWNARROW;
+		case KEY_ESCAPE: return DH_KEY_ESCAPE;
+		case KEY_ENTER:
+		case KEY_KP_ENTER: return DH_KEY_ENTER;
+		case KEY_TAB: return DH_KEY_TAB;
+		case KEY_F11: return DH_KEY_F11;
+		case KEY_F12: return DH_KEY_F12;
+		case KEY_BACKSPACE: return DH_KEY_BACKSPACE;
+		case KEY_DELETE: return DH_KEY_DEL;
+		case KEY_PAUSE: return DH_KEY_PAUSE;
+		case KEY_EQUAL:
+		case KEY_KP_ADD: return DH_KEY_EQUALS;
+		case KEY_MINUS:
+		case KEY_KP_SUBTRACT: return DH_KEY_MINUS;
+		case KEY_SHIFT: return DH_KEY_RSHIFT;
+		case KEY_CTRL: return DH_KEY_RCTRL;
+		case KEY_ALT: return DH_KEY_RALT;
+		case KEY_CAPSLOCK: return DH_KEY_CAPSLOCK;
+		case KEY_HOME: return DH_KEY_HOME;
+		case KEY_END: return DH_KEY_END;
+		case KEY_PAGEUP: return DH_KEY_PGUP;
+		case KEY_PAGEDOWN: return DH_KEY_PGDN;
+		case KEY_INSERT: return DH_KEY_INS;
+		case KEY_SPACE: return ' ';
+		case KEY_APOSTROPHE: return '\'';
+		case KEY_COMMA: return ',';
+		case KEY_PERIOD:
+		case KEY_KP_PERIOD: return '.';
+		case KEY_SLASH:
+		case KEY_KP_DIVIDE: return '/';
+		case KEY_SEMICOLON: return ';';
+		case KEY_BRACKETLEFT: return '[';
+		case KEY_BRACKETRIGHT: return ']';
+		case KEY_BACKSLASH: return '\\';
+		case KEY_QUOTELEFT: return '`';
+		case KEY_KP_MULTIPLY: return '*';
+		default: return 0;
+	}
+}
+
 String DoomSim::get_error() const {
 	return String::utf8(DH_ErrorMessage());
 }
@@ -68,6 +144,10 @@ Dictionary DoomSim::get_state() const {
 	d["oldz"] = s.oldz;
 	d["oldangle"] = s.oldangle;
 	d["turn"] = s.turn;
+	d["menu"] = s.menu != 0;
+	d["paused"] = s.paused != 0;
+	d["demoplayback"] = s.demoplayback != 0;
+	d["automap"] = s.automap != 0;
 	return d;
 }
 
@@ -257,6 +337,9 @@ void DoomSim::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("tic"), &DoomSim::tic);
 	ClassDB::bind_method(D_METHOD("is_started"), &DoomSim::is_started);
 	ClassDB::bind_method(D_METHOD("get_error"), &DoomSim::get_error);
+	ClassDB::bind_method(D_METHOD("post_event", "type", "data1", "data2", "data3"), &DoomSim::post_event, DEFVAL(0), DEFVAL(0));
+	ClassDB::bind_method(D_METHOD("get_control_key", "control"), &DoomSim::get_control_key);
+	ClassDB::bind_static_method("DoomSim", D_METHOD("doom_key", "key"), &DoomSim::doom_key);
 	ClassDB::bind_method(D_METHOD("get_state"), &DoomSim::get_state);
 	ClassDB::bind_method(D_METHOD("get_walls"), &DoomSim::get_walls);
 	ClassDB::bind_method(D_METHOD("get_things"), &DoomSim::get_things);
@@ -271,4 +354,17 @@ void DoomSim::_bind_methods() {
 	BIND_ENUM_CONSTANT(QUIT);
 	BIND_ENUM_CONSTANT(ERROR);
 	BIND_CONSTANT(SKY);
+	BIND_ENUM_CONSTANT(EVENT_KEY_DOWN);
+	BIND_ENUM_CONSTANT(EVENT_KEY_UP);
+	BIND_ENUM_CONSTANT(EVENT_MOUSE);
+	BIND_ENUM_CONSTANT(CONTROL_FORWARD);
+	BIND_ENUM_CONSTANT(CONTROL_BACKWARD);
+	BIND_ENUM_CONSTANT(CONTROL_TURN_LEFT);
+	BIND_ENUM_CONSTANT(CONTROL_TURN_RIGHT);
+	BIND_ENUM_CONSTANT(CONTROL_STRAFE_LEFT);
+	BIND_ENUM_CONSTANT(CONTROL_STRAFE_RIGHT);
+	BIND_ENUM_CONSTANT(CONTROL_FIRE);
+	BIND_ENUM_CONSTANT(CONTROL_USE);
+	BIND_ENUM_CONSTANT(CONTROL_STRAFE);
+	BIND_ENUM_CONSTANT(CONTROL_RUN);
 }

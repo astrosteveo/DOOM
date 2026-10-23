@@ -38,6 +38,20 @@
 #include "d_host.h"
 
 
+// The controls' keys, from g_game.c, and whether the mouse moves the
+// player forward, from i_video.c.
+extern int	key_right;
+extern int	key_left;
+extern int	key_up;
+extern int	key_down;
+extern int	key_strafeleft;
+extern int	key_straferight;
+extern int	key_fire;
+extern int	key_use;
+extern int	key_strafe;
+extern int	key_speed;
+extern int	mouse_novert;
+
 static jmp_buf	hostreturn;
 static int	ended;
 
@@ -198,6 +212,85 @@ void DH_GetState (dh_state_t* state)
 	state->extralight = state->fixedcolormap = 0;
     }
     state->sky = skytexture;
+    state->menu = menuactive;
+    state->paused = paused;
+    state->demoplayback = demoplayback;
+    state->automap = automapactive;
+}
+
+
+_Static_assert ((int)DH_KEYDOWN == (int)ev_keydown && (int)DH_KEYUP == (int)ev_keyup
+		&& (int)DH_MOUSE == (int)ev_mouse, "dh_event_t's types are evtype_t's");
+_Static_assert (DH_KEY_RIGHTARROW == KEY_RIGHTARROW
+		&& DH_KEY_LEFTARROW == KEY_LEFTARROW
+		&& DH_KEY_UPARROW == KEY_UPARROW
+		&& DH_KEY_DOWNARROW == KEY_DOWNARROW
+		&& DH_KEY_ESCAPE == KEY_ESCAPE && DH_KEY_ENTER == KEY_ENTER
+		&& DH_KEY_TAB == KEY_TAB && DH_KEY_F1 == KEY_F1
+		&& DH_KEY_F1+9 == KEY_F10 && DH_KEY_F11 == KEY_F11
+		&& DH_KEY_F12 == KEY_F12 && DH_KEY_BACKSPACE == KEY_BACKSPACE
+		&& DH_KEY_PAUSE == KEY_PAUSE && DH_KEY_EQUALS == KEY_EQUALS
+		&& DH_KEY_MINUS == KEY_MINUS && DH_KEY_RSHIFT == KEY_RSHIFT
+		&& DH_KEY_RCTRL == KEY_RCTRL && DH_KEY_RALT == KEY_RALT
+		&& DH_KEY_CAPSLOCK == KEY_CAPSLOCK && DH_KEY_HOME == KEY_HOME
+		&& DH_KEY_PGUP == KEY_PGUP && DH_KEY_END == KEY_END
+		&& DH_KEY_PGDN == KEY_PGDN && DH_KEY_INS == KEY_INS
+		&& DH_KEY_DEL == KEY_DEL, "DH_KEY_ codes are doomdef.h's");
+
+
+//
+// DH_PostEvent
+// As i_video.c posts SDL's events, and D_DoomLoop takes them between
+// tics.
+//
+int DH_PostEvent (const dh_event_t* event)
+{
+    event_t	ev;
+
+    if (ended)
+	return ended;
+
+    switch (setjmp (hostreturn))
+    {
+      case 0:
+	break;
+      case 1:
+	return ended = DH_QUIT;
+      default:
+	return ended = DH_ERROR;
+    }
+
+    ev.type = event->type;
+    ev.data1 = event->data1;
+    ev.data2 = event->data2;
+    ev.data3 = event->data3;
+    if (ev.type == ev_mouse && mouse_novert)
+	ev.data3 = 0;
+    D_PostEvent (&ev);
+    D_ProcessEvents ();
+    return DH_RUNNING;
+}
+
+
+//
+// DH_ControlKey
+//
+int DH_ControlKey (int control)
+{
+    switch (control)
+    {
+      case DH_FORWARD:		return key_up;
+      case DH_BACKWARD:		return key_down;
+      case DH_TURNLEFT:		return key_left;
+      case DH_TURNRIGHT:	return key_right;
+      case DH_STRAFELEFT:	return key_strafeleft;
+      case DH_STRAFERIGHT:	return key_straferight;
+      case DH_FIRE:		return key_fire;
+      case DH_USE:		return key_use;
+      case DH_STRAFE:		return key_strafe;
+      case DH_RUN:		return key_speed;
+      default:			return 0;
+    }
 }
 
 

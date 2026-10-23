@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://main.gd" id="1"]
 [ext_resource type="Script" path="res://level/level.gd" id="2"]
 [ext_resource type="Script" path="res://level/thing_lights.gd" id="3"]
+[ext_resource type="Script" path="res://input/doom_input.gd" id="4"]
 
 [sub_resource type="StandardMaterial3D" id="thing_material"]
 shading_mode = 0
@@ -34,6 +35,11 @@ script = ExtResource("1")
 
 [node name="Sim" type="DoomSim" parent="."]
 unique_name_in_owner = true
+
+[node name="Input" type="Node" parent="." node_paths=PackedStringArray("sim")]
+unique_name_in_owner = true
+script = ExtResource("4")
+sim = NodePath("../Sim")
 
 [node name="Level" type="Node3D" parent="."]
 unique_name_in_owner = true

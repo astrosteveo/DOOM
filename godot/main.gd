@@ -2,7 +2,8 @@ extends Node3D
 ## Runs the 1997 game in DoomSim, a tic per physics tick (35 a second),
 ## and shows it: the level built whenever one loads, and every frame the
 ## things and the camera at the player's eye placed between the last two
-## tics as Doom draws them, the view turned at once by the mouse. Floors,
+## tics as Doom draws them, the view turned at once by the mouse. The
+## player's keys and mouse go to the game through Input (DoomInput). Floors,
 ## ceilings and walls move between tics in the level's shaders, which
 ## read how far between tics a frame is from tic_fraction.
 ##
@@ -12,6 +13,7 @@ extends Node3D
 ## show the level lit only as Doom lights it, as the SDL3 build does.
 
 @onready var sim: DoomSim = %Sim
+@onready var input: DoomInput = %Input
 @onready var level: DoomLevel = %Level
 @onready var camera: Camera3D = %Camera
 @onready var muzzle_flash: OmniLight3D = %MuzzleFlash
@@ -31,6 +33,7 @@ func _ready() -> void:
 		level.lights.visible = false
 		environment.glow_enabled = false
 		environment.volumetric_fog_enabled = false
+	input.ended.connect(_check)
 	_check(sim.start(args))
 
 
@@ -39,8 +42,9 @@ func _process(_delta: float) -> void:
 	if fraction_override >= 0.0:
 		fraction = fraction_override
 	RenderingServer.global_shader_parameter_set("tic_fraction", fraction)
-	if not sim.is_started():
+	if not sim.is_started() or not is_physics_processing():
 		return
+	input.update()
 	var state := sim.get_state()
 	if state["gamestate"] != 0:
 		return

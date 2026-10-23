@@ -57,6 +57,9 @@ void D_RunTic (void);
 // Called by IO functions when input is detected.
 void D_PostEvent (event_t* ev);
 
+// Send the events posted so far down the responder chain.
+void D_ProcessEvents (void);
+
 	
 
 //

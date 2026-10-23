@@ -16,8 +16,10 @@
 //	only, so that C++ can include it; the engine's own headers
 //	don't compile as C++.
 //
-//	A host reads the game's state and never writes it, so a demo
-//	plays the same under any host as under the SDL3 build.
+//	A host reads the game's state and never writes it. What the
+//	player does it posts as Doom's own input events, which the game
+//	takes as it takes the SDL3 build's, so a demo plays the same under
+//	any host as under the SDL3 build.
 //
 //-----------------------------------------------------------------------------
 
@@ -77,9 +79,91 @@ typedef struct
     float	oldx, oldy, oldz;
     float	oldangle;
     float	turn;
+    // Whether the menu is open, the game paused, a demo playing and the
+    // automap up, each 0 or 1.
+    int		menu;
+    int		paused;
+    int		demoplayback;
+    int		automap;
 } dh_state_t;
 
 void		DH_GetState (dh_state_t* state);
+
+// Input: Doom's event_t. A key is a lowercase character or one of the
+// DH_KEY_ codes; a mouse event carries the buttons held, 1 left, 2
+// right and 4 middle, and how far the mouse moved right and away from
+// the player since the last, in the SDL3 build's mouse counts (a pixel
+// of relative motion), which the game scales by its sensitivity.
+enum
+{
+    DH_KEYDOWN,
+    DH_KEYUP,
+    DH_MOUSE
+};
+
+typedef struct
+{
+    int		type;
+    int		data1;		// the key, or the mouse buttons
+    int		data2;		// mouse motion right
+    int		data3;		// mouse motion forward
+} dh_event_t;
+
+// Doom's codes for keys that aren't characters.
+enum
+{
+    DH_KEY_RIGHTARROW = 0xae,
+    DH_KEY_LEFTARROW = 0xac,
+    DH_KEY_UPARROW = 0xad,
+    DH_KEY_DOWNARROW = 0xaf,
+    DH_KEY_ESCAPE = 27,
+    DH_KEY_ENTER = 13,
+    DH_KEY_TAB = 9,
+    DH_KEY_F1 = 0x80+0x3b,	// to F10, in order
+    DH_KEY_F11 = 0x80+0x57,
+    DH_KEY_F12 = 0x80+0x58,
+    DH_KEY_BACKSPACE = 127,
+    DH_KEY_PAUSE = 0xff,
+    DH_KEY_EQUALS = 0x3d,
+    DH_KEY_MINUS = 0x2d,
+    DH_KEY_RSHIFT = 0x80+0x36,
+    DH_KEY_RCTRL = 0x80+0x1d,
+    DH_KEY_RALT = 0x80+0x38,
+    DH_KEY_CAPSLOCK = 0x80+0x3a,
+    DH_KEY_HOME = 0x80+0x47,
+    DH_KEY_PGUP = 0x80+0x49,
+    DH_KEY_END = 0x80+0x4f,
+    DH_KEY_PGDN = 0x80+0x51,
+    DH_KEY_INS = 0x80+0x52,
+    DH_KEY_DEL = 0x80+0x53
+};
+
+// Hands the game an event, at once, so that the menu answers and the
+// view turns with the mouse between tics, as in the SDL3 build. While
+// a demo plays, its tics come from the demo whatever is posted; a key
+// opens the menu, as it does there. Returns as DH_Tic does, since the
+// menu can quit the game.
+int		DH_PostEvent (const dh_event_t* event);
+
+// The game's controls, which its config binds to keys.
+enum
+{
+    DH_FORWARD,
+    DH_BACKWARD,
+    DH_TURNLEFT,
+    DH_TURNRIGHT,
+    DH_STRAFELEFT,
+    DH_STRAFERIGHT,
+    DH_FIRE,
+    DH_USE,
+    DH_STRAFE,		// held, turning strafes
+    DH_RUN,
+    DH_NUMCONTROLS
+};
+
+// The key the game's config binds a control to, for a host that has
+// bindings of its own to post as that key.
+int		DH_ControlKey (int control);
 
 // What a wall's texture or a sector's flat is where Doom draws the sky
 // in its place: DH_GetState's sky, drawn by view angle, not mapped
