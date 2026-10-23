@@ -16,8 +16,11 @@ find_package(SDL3 REQUIRED CONFIG)
 
 set(SRC ${CMAKE_SOURCE_DIR}/linuxdoom-1.10)
 
-add_executable(linuxdoom
-  ${SRC}/i_main.c
+# The engine is a library: the SDL3 game is i_main.c over it, and the
+# Godot extension (DOOM_GODOT) is another host over the same code. It is
+# position independent so that a shared library can take it in.
+add_library(doomengine STATIC
+  ${SRC}/d_host.c
   ${SRC}/i_system.c
   ${SRC}/i_video.c
   ${SRC}/i_sound.c
@@ -85,11 +88,22 @@ add_executable(linuxdoom
   ${CMAKE_SOURCE_DIR}/third_party/nuked-opl3/opl3.c
 )
 
-target_include_directories(linuxdoom PRIVATE ${CMAKE_SOURCE_DIR}/third_party/nuked-opl3)
-target_compile_definitions(linuxdoom PRIVATE NORMALUNIX LINUX)
+set_target_properties(doomengine PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(doomengine
+  PRIVATE ${CMAKE_SOURCE_DIR}/third_party/nuked-opl3
+  INTERFACE ${SRC})
+target_compile_definitions(doomengine PUBLIC NORMALUNIX LINUX)
 # The game logic was written for (and its demos recorded with) a compiler
 # that let signed arithmetic wrap and didn't reason about aliasing; an
 # optimizer that does can change how demos play back.
-target_compile_options(linuxdoom PRIVATE -fwrapv -fno-strict-aliasing
+target_compile_options(doomengine PUBLIC -fwrapv -fno-strict-aliasing
   -Wall -Wno-unused-const-variable)
-target_link_libraries(linuxdoom PRIVATE SDL3::SDL3 m)
+target_link_libraries(doomengine PUBLIC SDL3::SDL3 m)
+
+add_executable(linuxdoom ${SRC}/i_main.c)
+target_link_libraries(linuxdoom PRIVATE doomengine)
+
+option(DOOM_GODOT "Build the Godot extension (fetches godot-cpp)" OFF)
+if(DOOM_GODOT)
+  add_subdirectory(godot/extension)
+endif()

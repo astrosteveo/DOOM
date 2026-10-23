@@ -54,6 +54,10 @@ int R_FlatNumForName (char* name);
 int R_TextureNumForName (char *name);
 int R_CheckTextureNumForName (char *name);
 
+// A texture's name (up to 8 characters and a 0) and size, for a host
+// that draws textures itself. False when there is no such texture.
+boolean R_TextureInfo (int tex, char* name, int* width, int* height);
+
 #endif
 //-----------------------------------------------------------------------------
 //

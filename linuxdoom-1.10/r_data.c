@@ -404,6 +404,23 @@ R_GetColumn
 
 
 //
+// R_TextureInfo
+//
+boolean R_TextureInfo (int tex, char* name, int* width, int* height)
+{
+    if (tex < 0 || tex >= numtextures)
+	return false;
+    memcpy (name, textures[tex]->name, 8);
+    name[8] = 0;
+    *width = textures[tex]->width;
+    *height = textures[tex]->height;
+    return true;
+}
+
+
+
+
+//
 // R_InitTextures
 // Initializes the texture list
 //  with the textures from the world map.

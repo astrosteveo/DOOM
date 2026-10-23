@@ -27,6 +27,8 @@
 #include "m_fixed.h"
 #include "d_event.h"
 
+#include <setjmp.h>
+
 #ifdef __GNUG__
 #pragma interface
 #endif
@@ -90,6 +92,13 @@ ticcmd_t* I_BaseTiccmd (void);
 // Called by M_Responder when quit is selected.
 // Clean exit, displays sell blurb.
 void I_Quit (void);
+
+// A host that runs the game inside its own process (the Godot
+// extension) points this at a jump buffer: I_Quit then jumps to it
+// with 1 and I_Error with 2, instead of ending the process. I_Error
+// leaves its message in I_ErrorMessage.
+extern jmp_buf*	I_HostReturn;
+extern char	I_ErrorMessage[1024];
 
 
 // Allocates from low memory under dos,

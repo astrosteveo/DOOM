@@ -403,7 +403,11 @@ static void D_LimitFrameRate (void)
     nextframe += interval;
 }
 
-void D_DoomLoop (void)
+//
+// D_StartLoop
+// What the loop sets up before its first frame, apart from graphics.
+//
+void D_StartLoop (void)
 {
     if (demorecording)
 	G_BeginRecording ();
@@ -415,7 +419,29 @@ void D_DoomLoop (void)
 	printf ("debug output to: %s\n",filename);
 	debugfile = fopen (filename,"w");
     }
-	
+}
+
+//
+// D_RunTic
+// One game tic, run outright, as -singletics does each frame. A host
+// that keeps its own time (the Godot extension) calls it 35 times a
+// second, posting its input with D_PostEvent before.
+//
+void D_RunTic (void)
+{
+    D_ProcessEvents ();
+    G_BuildTiccmd (&netcmds[consoleplayer][maketic%BACKUPTICS]);
+    if (advancedemo)
+	D_DoAdvanceDemo ();
+    M_Ticker ();
+    G_Ticker ();
+    gametic++;
+    maketic++;
+}
+
+void D_DoomLoop (void)
+{
+    D_StartLoop ();
     I_InitGraphics ();
 
     while (1)
@@ -427,14 +453,7 @@ void D_DoomLoop (void)
 	if (singletics)
 	{
 	    I_StartTic ();
-	    D_ProcessEvents ();
-	    G_BuildTiccmd (&netcmds[consoleplayer][maketic%BACKUPTICS]);
-	    if (advancedemo)
-		D_DoAdvanceDemo ();
-	    M_Ticker ();
-	    G_Ticker ();
-	    gametic++;
-	    maketic++;
+	    D_RunTic ();
 	}
 	else
 	{
@@ -729,7 +748,12 @@ void FindResponseFile (void)
 //
 // D_DoomMain
 //
-void D_DoomMain (void)
+//
+// D_DoomSetup
+// Everything before the loop: finds the game, reads the command line,
+// loads the WADs and starts a game, a demo or the title screen.
+//
+void D_DoomSetup (void)
 {
     int             p;
     char                    file[1024];
@@ -1070,14 +1094,14 @@ void D_DoomMain (void)
     {
 	singledemo = true;              // quit after one demo
 	G_DeferedPlayDemo (myargv[p+1]);
-	D_DoomLoop ();  // never returns
+	return;
     }
 	
     p = M_CheckParm ("-timedemo");
     if (p && p < myargc-1)
     {
 	G_TimeDemo (myargv[p+1]);
-	D_DoomLoop ();  // never returns
+	return;
     }
 	
     p = M_CheckParm ("-loadgame");
@@ -1096,6 +1120,10 @@ void D_DoomMain (void)
 	    D_StartTitle ();                // start up intro loop
 
     }
+}
 
+void D_DoomMain (void)
+{
+    D_DoomSetup ();
     D_DoomLoop ();  // never returns
 }

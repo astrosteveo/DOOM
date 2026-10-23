@@ -48,6 +48,12 @@ void D_AddFile (char *file);
 //
 void D_DoomMain (void);
 
+// D_DoomMain is D_DoomSetup, then the loop. A host that runs the game
+// itself calls D_DoomSetup and D_StartLoop, then D_RunTic once a tic.
+void D_DoomSetup (void);
+void D_StartLoop (void);
+void D_RunTic (void);
+
 // Called by IO functions when input is detected.
 void D_PostEvent (event_t* ev);
 

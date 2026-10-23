@@ -184,6 +184,9 @@ void I_Init (void)
     //  I_InitGraphics();
 }
 
+jmp_buf*	I_HostReturn;
+char		I_ErrorMessage[1024];
+
 //
 // I_Quit
 //
@@ -194,6 +197,8 @@ void I_Quit (void)
     I_ShutdownMusic();
     M_SaveDefaults ();
     I_ShutdownGraphics();
+    if (I_HostReturn)
+	longjmp (*I_HostReturn, 1);
     SDL_Quit ();
     exit(0);
 }
@@ -308,13 +313,18 @@ void I_Error (char *error, ...)
     va_start (argptr,error);
     vsnprintf (msg, sizeof(msg), error, argptr);
     va_end (argptr);
+    snprintf (I_ErrorMessage, sizeof(I_ErrorMessage), "%s", msg);
 
     fprintf (stderr, "Error: %s\n", msg);
     fflush( stderr );
 
     // An error during shutdown must not recurse.
     if (inerror)
+    {
+	if (I_HostReturn)
+	    longjmp (*I_HostReturn, 2);
 	exit(-1);
+    }
     inerror = true;
 
     // Shutdown. Here might be other errors.
@@ -324,6 +334,12 @@ void I_Error (char *error, ...)
     D_QuitNetGame ();
     I_ShutdownSound ();
     I_ShutdownGraphics();
+
+    if (I_HostReturn)
+    {
+	inerror = false;
+	longjmp (*I_HostReturn, 2);
+    }
 
     if (!M_CheckParm ("-nogui"))
 	SDL_ShowSimpleMessageBox (SDL_MESSAGEBOX_ERROR, PROGRAM_TITLE, msg, NULL);
