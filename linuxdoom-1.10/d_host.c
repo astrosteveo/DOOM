@@ -24,9 +24,11 @@
 #include "doomdef.h"
 #include "doomstat.h"
 #include "d_main.h"
+#include "g_game.h"
 #include "i_system.h"
 #include "m_argv.h"
 #include "p_local.h"
+#include "p_tick.h"
 #include "r_data.h"
 #include "r_sky.h"
 #include "r_state.h"
@@ -130,6 +132,17 @@ static float Radians (angle_t a)
     return a * (float)(2*M_PI / 4294967296.0);
 }
 
+//
+// Moved
+// Whether the world moved in the last tic, which it doesn't while the
+// game is paused or in the menu: if not, what was a tic before is
+// where it is now, as D_Display has it.
+//
+static boolean Moved (void)
+{
+    return lastsimtic == gametic-1;
+}
+
 
 //
 // DH_GetState
@@ -137,6 +150,7 @@ static float Radians (angle_t a)
 void DH_GetState (dh_state_t* state)
 {
     player_t*	player;
+    mobj_t*	mo;
 
     state->gametic = gametic;
     state->gamestate = gamestate;
@@ -146,18 +160,41 @@ void DH_GetState (dh_state_t* state)
     state->levelcount = levelcount;
 
     player = &players[consoleplayer];
-    if (gamestate == GS_LEVEL && player->mo)
+    mo = player->mo;
+    if (gamestate == GS_LEVEL && mo)
     {
-	state->x = Units (player->mo->x);
-	state->y = Units (player->mo->y);
+	state->x = Units (mo->x);
+	state->y = Units (mo->y);
 	state->z = Units (player->viewz);
-	state->angle = Radians (player->mo->angle);
+	state->angle = Radians (mo->angle);
 	state->extralight = player->extralight;
 	state->fixedcolormap = player->fixedcolormap;
+
+	// As R_SetupFrame places the view.
+	if (Moved () && mo->interp)
+	{
+	    state->oldx = Units (mo->oldx);
+	    state->oldy = Units (mo->oldy);
+	    state->oldz = Units (player->oldviewz);
+	}
+	else
+	{
+	    state->oldx = state->x;
+	    state->oldy = state->y;
+	    state->oldz = state->z;
+	}
+	if (Moved () && mo->interp && demoplayback)
+	    state->oldangle = Radians (mo->oldangle);
+	else
+	    state->oldangle = state->angle;
+	// G_PendingTurn is an angle_t; it turns either way.
+	state->turn = (int)G_PendingTurn () * (float)(2*M_PI / 4294967296.0);
     }
     else
     {
 	state->x = state->y = state->z = state->angle = 0;
+	state->oldx = state->oldy = state->oldz = state->oldangle = 0;
+	state->turn = 0;
 	state->extralight = state->fixedcolormap = 0;
     }
     state->sky = skytexture;
@@ -345,6 +382,21 @@ int DH_GetThings (dh_thing_t* things, int max)
 	    t->angle = Radians (mo->angle);
 	    t->type = mo->type;
 	    t->flags = mo->flags;
+	    t->id = mo->id;
+	    if (Moved () && mo->interp)
+	    {
+		t->oldx = Units (mo->oldx);
+		t->oldy = Units (mo->oldy);
+		t->oldz = Units (mo->oldz);
+		t->oldangle = Radians (mo->oldangle);
+	    }
+	    else
+	    {
+		t->oldx = t->x;
+		t->oldy = t->y;
+		t->oldz = t->z;
+		t->oldangle = t->angle;
+	    }
 	}
 	count++;
     }

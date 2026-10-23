@@ -67,6 +67,16 @@ typedef struct
     // invulnerability, in inverted gray.
     int		extralight;
     int		fixedcolormap;
+    // The eye a tic before, to draw it in between as Doom does; the same
+    // as x, y, z and angle when it didn't move. The view turns between
+    // tics only in a demo: playing, the angle is this tic's and turn is
+    // how far the mouse will turn it next tic, radians, to turn the view
+    // at once with the mouse. So Doom's view looks from oldangle to
+    // angle, the short way round, by how far between tics a frame is,
+    // plus turn.
+    float	oldx, oldy, oldz;
+    float	oldangle;
+    float	turn;
 } dh_state_t;
 
 void		DH_GetState (dh_state_t* state);
@@ -114,6 +124,14 @@ typedef struct
     float	angle;		// radians counterclockwise from east
     int		type;		// mobjtype_t
     int		flags;		// MF_*
+    // Where it was a tic before, to draw it in between: the same as
+    // x, y, z and angle when it didn't move, wasn't there, teleported,
+    // or the game stood still (paused, or in the menu).
+    float	oldx, oldy, oldz;
+    float	oldangle;
+    // Tells it from every other thing the game made this session, to
+    // follow it from tic to tic; never 0.
+    int		id;
 } dh_thing_t;
 
 // The same for the things in the level.

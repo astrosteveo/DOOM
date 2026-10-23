@@ -474,6 +474,18 @@ void P_MobjThinker (mobj_t* mobj)
 
 
 //
+// P_NewThingId
+// For mobj_t's id: never 0, and never the same twice in a session.
+//
+int P_NewThingId (void)
+{
+    static int	lastid;
+
+    return ++lastid;
+}
+
+
+//
 // P_SpawnMobj
 //
 mobj_t*
@@ -493,6 +505,7 @@ P_SpawnMobj
 	
     mobj->type = type;
     mobj->info = info;
+    mobj->id = P_NewThingId ();
     mobj->x = x;
     mobj->y = y;
     mobj->radius = info->radius;

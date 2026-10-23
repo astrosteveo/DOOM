@@ -4,11 +4,12 @@ extends Node3D
 ## its walls as one mesh with a surface per texture, its floors and
 ## ceilings as a node per sector for each, lit by their sectors' light
 ## levels as Doom lights them; the sky where Doom shows it; and
-## its things as boxes their size for now. Light lives in a texture, so
-## a change of light rebuilds nothing; surface.gdshader darkens it with
-## distance as Doom does. So do sector heights, a tic's and the tic
-## before's: the shaders move walls, floors and ceilings between them,
-## so they move smoothly, and a door or lift rebuilds nothing either.
+## its things as boxes their size for now, moved smoothly between tics.
+## Light lives in a texture, so a change of light rebuilds nothing;
+## surface.gdshader darkens it with distance as Doom does. So do sector
+## heights, a tic's and the tic before's: the shaders move walls, floors
+## and ceilings between them, so they move smoothly, and a door or lift
+## rebuilds nothing either.
 
 const MT_PLAYER := 0
 const MF_NOSECTOR := 8	# invisible things, such as teleport exits
@@ -48,6 +49,9 @@ var _planes: Array[MeshInstance3D] = []
 var _heights := PackedFloat32Array()
 var _flats := PackedInt32Array()
 var _levels := PackedInt32Array()
+## DoomSim.get_things() this tic, and which of them have boxes.
+var _things: Dictionary = {}
+var _shown := PackedInt32Array()
 
 
 func _ready() -> void:
@@ -116,39 +120,59 @@ func update_planes(sim: DoomSim) -> void:
 		_levels = levels
 
 
-## Moves the boxes to where the things are this tic, and the lights to
-## those that give light, unless the lights are hidden. Those boxes
-## glow in the lights' colours.
+## Reads where the things are this tic and were the tic before, for
+## place_things to put their boxes in between, and the lights on those
+## that give light, unless the lights are hidden. Those boxes glow in
+## the lights' colours.
 func update_things(sim: DoomSim) -> void:
-	var data := sim.get_things()
-	var coords: PackedFloat32Array = data["coords"]
-	var types: PackedInt32Array = data["types"]
-	var flags: PackedInt32Array = data["flags"]
+	_things = sim.get_things()
+	var types: PackedInt32Array = _things["types"]
+	var flags: PackedInt32Array = _things["flags"]
 
-	var shown: Array[int] = []
+	_shown.clear()
 	for i in types.size():
 		if types[i] != MT_PLAYER and not (flags[i] & MF_NOSECTOR):
-			shown.append(i)
+			_shown.append(i)
 
 	var multimesh := things.multimesh
-	if multimesh.instance_count != shown.size():
-		multimesh.instance_count = shown.size()
-	for n in shown.size():
-		var c := shown[n] * 6
-		var radius := coords[c + 3]
-		var height := coords[c + 4]
-		var size := Vector3(radius * 2.0, height, radius * 2.0) * DoomSpace.SCALE
-		var basis := Basis(Vector3.UP, DoomSpace.yaw(coords[c + 5])).scaled(size)
-		var origin := DoomSpace.point(coords[c], coords[c + 1], coords[c + 2] + height / 2.0)
-		multimesh.set_instance_transform(n, Transform3D(basis, origin))
-		var type := types[shown[n]]
+	if multimesh.instance_count != _shown.size():
+		multimesh.instance_count = _shown.size()
+	for n in _shown.size():
+		var type := types[_shown[n]]
 		if lights.visible and DoomThingLights.gives_light(type):
 			multimesh.set_instance_color(n, DoomThingLights.light_color(type) * 1.5)
 		else:
 			multimesh.set_instance_color(n, Color.from_hsv(fmod(type * 0.618, 1.0), 0.6, 0.9))
 
 	if lights.visible:
-		lights.update(data)
+		lights.update(_things)
+
+
+## Puts the boxes and lights fraction of the way from where the things
+## were a tic before to where they are this tic, as Doom draws them
+## between tics.
+func place_things(fraction: float) -> void:
+	if _things.is_empty():
+		return
+	var coords: PackedFloat32Array = _things["coords"]
+	var old: PackedFloat32Array = _things["old"]
+	var multimesh := things.multimesh
+	for n in _shown.size():
+		var c := _shown[n] * 6
+		var o := _shown[n] * 4
+		var radius := coords[c + 3]
+		var height := coords[c + 4]
+		var size := Vector3(radius * 2.0, height, radius * 2.0) * DoomSpace.SCALE
+		var angle := lerp_angle(old[o + 3], coords[c + 5], fraction)
+		var basis := Basis(Vector3.UP, DoomSpace.yaw(angle)).scaled(size)
+		var origin := DoomSpace.point(
+			lerpf(old[o], coords[c], fraction),
+			lerpf(old[o + 1], coords[c + 1], fraction),
+			lerpf(old[o + 2], coords[c + 2], fraction) + height / 2.0)
+		multimesh.set_instance_transform(n, Transform3D(basis, origin))
+
+	if lights.visible:
+		lights.place(fraction)
 
 
 ## Sets up the sector textures for the level DoomSim is on now, with

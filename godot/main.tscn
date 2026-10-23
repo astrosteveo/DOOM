@@ -47,6 +47,7 @@ unique_name_in_owner = true
 
 [node name="Things" type="MultiMeshInstance3D" parent="Level"]
 unique_name_in_owner = true
+physics_interpolation_mode = 2
 cast_shadow = 0
 multimesh = SubResource("things")
 
@@ -56,6 +57,7 @@ script = ExtResource("3")
 
 [node name="Camera" type="Camera3D" parent="."]
 unique_name_in_owner = true
+physics_interpolation_mode = 2
 fov = 73.74
 near = 0.05
 

@@ -784,6 +784,7 @@ void P_UnArchiveThinkers (void)
 	    mobj = Z_Malloc (sizeof(*mobj), PU_LEVEL, NULL);
 	    memset (mobj, 0, sizeof(*mobj));
 	    saveg_read_mobj (mobj);
+	    mobj->id = P_NewThingId ();
 
 	    if (mobj->player)
 		mobj->player->mo = mobj;

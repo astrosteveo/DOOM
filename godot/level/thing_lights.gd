@@ -4,8 +4,8 @@ extends Node3D
 ## and burning barrels, and fireballs, rockets and plasma in flight and
 ## as they burst. Doom itself lights only by its sectors' light levels,
 ## which the level's surfaces glow with (surface.gdshader), so these add
-## to that. A light per thing, put where the thing is each tic, from a
-## pool that grows as it needs to. Fixtures cast shadows; projectiles,
+## to that. A light per thing, from a pool that grows as it needs to,
+## moved between tics with its thing. Fixtures cast shadows; projectiles,
 ## which come and go, don't.
 
 const MF_MISSILE := 0x10000	# a projectile in flight, cleared as it bursts
@@ -67,6 +67,13 @@ var _lights: Array[OmniLight3D] = []
 ## Each light's flicker, or 0 for a steady one.
 var _flicker := PackedFloat32Array()
 var _energy := PackedFloat32Array()
+## Each light's thing: its id, which keeps its flicker going the same
+## way when the pool hands it another light, and where it is this tic
+## and was the tic before, at the light's height.
+var _ids := PackedInt32Array()
+var _from := PackedVector3Array()
+var _to := PackedVector3Array()
+var _count := 0
 
 
 ## Whether things of this type give light, and in what colour.
@@ -78,11 +85,14 @@ static func light_color(type: int) -> Color:
 	return LIGHTS[type][0]
 
 
-## Puts a light on each thing that gives one, from DoomSim.get_things().
+## Puts a light on each thing that gives one, from DoomSim.get_things(),
+## for place() to move between tics.
 func update(data: Dictionary) -> void:
 	var coords: PackedFloat32Array = data["coords"]
+	var old: PackedFloat32Array = data["old"]
 	var types: PackedInt32Array = data["types"]
 	var flags: PackedInt32Array = data["flags"]
+	var ids: PackedInt32Array = data["ids"]
 
 	var n := 0
 	for i in types.size():
@@ -96,26 +106,38 @@ func update(data: Dictionary) -> void:
 			energy *= BURST_ENERGY
 			reach *= BURST_RANGE
 		var c := i * 6
+		var up := coords[c + 4] * float(light[3])
 		var omni := _light(n)
 		omni.light_color = light[0]
 		omni.omni_range = reach
 		omni.shadow_enabled = not projectile
-		omni.position = DoomSpace.point(coords[c], coords[c + 1], coords[c + 2] + coords[c + 4] * float(light[3]))
 		omni.visible = true
+		_from[n] = DoomSpace.point(old[i * 4], old[i * 4 + 1], old[i * 4 + 2] + up)
+		_to[n] = DoomSpace.point(coords[c], coords[c + 1], coords[c + 2] + up)
+		_ids[n] = ids[i]
 		_energy[n] = energy
 		_flicker[n] = 1.0 if light[4] & FLICKER else 0.0
 		omni.light_energy = energy
 		n += 1
 	for i in range(n, _lights.size()):
 		_lights[i].visible = false
+	_count = n
+
+
+## Moves the lights fraction of the way from where their things were a
+## tic before to where they are, as the boxes move.
+func place(fraction: float) -> void:
+	for i in _count:
+		_lights[i].position = _from[i].lerp(_to[i], fraction)
 
 
 func _process(_delta: float) -> void:
 	# Flames flicker between tics. It's only light: the game never sees it.
 	var t := Time.get_ticks_msec() / 1000.0
-	for i in _lights.size():
-		if _flicker[i] > 0.0 and _lights[i].visible:
-			var wave := 0.07 * sin(t * 13.0 + i * 1.7) + 0.05 * sin(t * 31.0 + i * 4.1)
+	for i in _count:
+		if _flicker[i] > 0.0:
+			var phase := float(_ids[i])
+			var wave := 0.07 * sin(t * 13.0 + phase * 1.7) + 0.05 * sin(t * 31.0 + phase * 4.1)
 			_lights[i].light_energy = _energy[i] * (1.0 + wave)
 
 
@@ -127,11 +149,14 @@ func _light(n: int) -> OmniLight3D:
 		omni.distance_fade_enabled = true
 		omni.distance_fade_begin = 40.0
 		omni.distance_fade_length = 10.0
-		# Moved a tic at a time like the things; the pool's lights change
-		# things from tic to tic, so interpolating would sweep them across.
+		# Placed every frame by place(); the pool's lights change things
+		# from tic to tic, so Godot's interpolation would sweep them across.
 		omni.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
 		add_child(omni)
 		_lights.append(omni)
 		_flicker.append(0.0)
 		_energy.append(0.0)
+		_ids.append(0)
+		_from.append(Vector3.ZERO)
+		_to.append(Vector3.ZERO)
 	return _lights[n]

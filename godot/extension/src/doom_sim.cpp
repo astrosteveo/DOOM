@@ -63,6 +63,11 @@ Dictionary DoomSim::get_state() const {
 	d["sky"] = s.sky;
 	d["extralight"] = s.extralight;
 	d["fixedcolormap"] = s.fixedcolormap;
+	d["oldx"] = s.oldx;
+	d["oldy"] = s.oldy;
+	d["oldz"] = s.oldz;
+	d["oldangle"] = s.oldangle;
+	d["turn"] = s.turn;
 	return d;
 }
 
@@ -113,24 +118,36 @@ Dictionary DoomSim::get_things() const {
 	int count = DH_GetThings(things.data(), (int)things.size());
 
 	PackedFloat32Array coords;
+	PackedFloat32Array old;
 	PackedInt32Array types;
 	PackedInt32Array flags;
+	PackedInt32Array ids;
 	coords.resize(count * 6);
+	old.resize(count * 4);
 	types.resize(count);
 	flags.resize(count);
+	ids.resize(count);
 	for (int i = 0; i < count; i++) {
 		const dh_thing_t &t = things[i];
 		const float values[6] = { t.x, t.y, t.z, t.radius, t.height, t.angle };
 		for (int j = 0; j < 6; j++) {
 			coords[i * 6 + j] = values[j];
 		}
+		old[i * 4] = t.oldx;
+		old[i * 4 + 1] = t.oldy;
+		old[i * 4 + 2] = t.oldz;
+		old[i * 4 + 3] = t.oldangle;
 		types[i] = t.type;
 		flags[i] = t.flags;
+		ids[i] = t.id;
 	}
-	// coords: x, y, z, radius, height, angle for each thing.
+	// coords: x, y, z, radius, height, angle for each thing; old: x, y,
+	// z and angle a tic before.
 	d["coords"] = coords;
+	d["old"] = old;
 	d["types"] = types;
 	d["flags"] = flags;
+	d["ids"] = ids;
 	return d;
 }
 

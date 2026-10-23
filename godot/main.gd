@@ -1,10 +1,10 @@
 extends Node3D
 ## Runs the 1997 game in DoomSim, a tic per physics tick (35 a second),
-## and shows it: the level built whenever one loads, the things moved
-## each tic, and the camera at the player's eye, smoothed between tics
-## by physics interpolation. Floors, ceilings and walls are smoothed
-## with it in the level's shaders, which read how far between tics a
-## frame is from tic_fraction.
+## and shows it: the level built whenever one loads, and every frame the
+## things and the camera at the player's eye placed between the last two
+## tics as Doom draws them, the view turned at once by the mouse. Floors,
+## ceilings and walls move between tics in the level's shaders, which
+## read how far between tics a frame is from tic_fraction.
 ##
 ## Doom's command line goes after "--": godot --path godot -- -warp 1 1
 ## With none, the game runs its title loop and plays its demos. -classic,
@@ -18,6 +18,10 @@ extends Node3D
 @onready var environment: Environment = %Environment.environment
 
 var _levelcount := 0
+## How far between tics frames are drawn, when 0 to 1, for looking at
+## them under gdh, whose fixed frame rate keeps it near 0; below 0,
+## frames are drawn where they come.
+var fraction_override := -1.0
 
 
 func _ready() -> void:
@@ -31,7 +35,17 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	RenderingServer.global_shader_parameter_set("tic_fraction", Engine.get_physics_interpolation_fraction())
+	var fraction := Engine.get_physics_interpolation_fraction()
+	if fraction_override >= 0.0:
+		fraction = fraction_override
+	RenderingServer.global_shader_parameter_set("tic_fraction", fraction)
+	if not sim.is_started():
+		return
+	var state := sim.get_state()
+	if state["gamestate"] != 0:
+		return
+	level.place_things(fraction)
+	_place_camera(state, fraction)
 
 
 func _physics_process(_delta: float) -> void:
@@ -48,19 +62,23 @@ func _physics_process(_delta: float) -> void:
 	if state["levelcount"] != _levelcount:
 		_levelcount = state["levelcount"]
 		level.build(sim)
-		_place_camera(state)
-		camera.reset_physics_interpolation()
 	else:
 		level.update_walls(sim)
 		level.update_planes(sim)
 		level.update_things(sim)
-		_place_camera(state)
 
 
-func _place_camera(state: Dictionary) -> void:
+## Puts the camera where R_SetupFrame puts Doom's view: fraction of the
+## way from the eye a tic before to this tic's, and turned by the mouse
+## turn the next tic will make, so that it turns at once.
+func _place_camera(state: Dictionary, fraction: float) -> void:
+	var angle := lerp_angle(state["oldangle"], state["angle"], fraction) + float(state["turn"])
 	camera.global_transform = Transform3D(
-		Basis(Vector3.UP, DoomSpace.yaw(state["angle"])),
-		DoomSpace.point(state["x"], state["y"], state["z"]))
+		Basis(Vector3.UP, DoomSpace.yaw(angle)),
+		DoomSpace.point(
+			lerpf(state["oldx"], state["x"], fraction),
+			lerpf(state["oldy"], state["y"], fraction),
+			lerpf(state["oldz"], state["z"], fraction)))
 
 
 ## False once the game has ended, after quitting Godot the same way.

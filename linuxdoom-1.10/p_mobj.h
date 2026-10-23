@@ -291,6 +291,11 @@ typedef struct mobj_s
     angle_t		oldangle;
     boolean		interp;		// false until the old values are valid
 
+    // Tells it from every other thing the game has made, for a host
+    // to follow it from tic to tic (d_host.h). Not part of the game
+    // state either.
+    int			id;
+
 } mobj_t;
 
 
