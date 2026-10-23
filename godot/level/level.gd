@@ -3,9 +3,10 @@ extends Node3D
 ## The level the game is on, built from what DoomSim reads out of it:
 ## its walls as one mesh with a surface per texture, its floors and
 ## ceilings as a node per sector for each, lit by their sectors' light
-## levels as Doom draws them unshaded; the sky where Doom shows it; and
+## levels as Doom lights them; the sky where Doom shows it; and
 ## its things as boxes their size for now. Light lives in a texture, so
-## a change of light rebuilds nothing.
+## a change of light rebuilds nothing; surface.gdshader darkens it with
+## distance as Doom does.
 
 const MT_PLAYER := 0
 const MF_NOSECTOR := 8	# invisible things, such as teleport exits
@@ -180,6 +181,9 @@ func _add_wall(surface: Array, coords: PackedFloat32Array, c: int, size: Vector2
 	var b_bottom := DoomSpace.point(x2, y2, bottom)
 	var a_bottom := DoomSpace.point(x1, y1, bottom)
 	var normal := Vector3(y2 - y1, 0.0, x2 - x1).normalized()
+	# Doom's fake contrast: walls along x a light step darker, along y
+	# one brighter.
+	var contrast := -1.0 if y1 == y2 else 1.0 if x1 == x2 else 0.0
 
 	var positions: PackedVector3Array = surface[0]
 	var normals: PackedVector3Array = surface[1]
@@ -189,7 +193,7 @@ func _add_wall(surface: Array, coords: PackedFloat32Array, c: int, size: Vector2
 	uvs.append_array([Vector2(u1, v1), Vector2(u2, v1), Vector2(u2, v2), Vector2(u1, v1), Vector2(u2, v2), Vector2(u1, v2)])
 	for i in 6:
 		normals.append(normal)
-		sectors.append(Vector2(sector, 0.0))
+		sectors.append(Vector2(sector, contrast))
 	# Packed arrays come out of an Array as copies: put them back.
 	surface[0] = positions
 	surface[1] = normals
@@ -199,7 +203,7 @@ func _add_wall(surface: Array, coords: PackedFloat32Array, c: int, size: Vector2
 
 func _material(sim: DoomSim, texture: int) -> ShaderMaterial:
 	if not _materials.has(texture):
-		_materials[texture] = _surface_material(sim.get_texture_name(texture), sim.get_texture_image(texture))
+		_materials[texture] = _surface_material(sim.get_texture_name(texture), sim.get_texture_image(texture), false)
 	return _materials[texture]
 
 
@@ -280,18 +284,20 @@ func _flat_material(sim: DoomSim, flat: int) -> ShaderMaterial:
 	if flat == DoomSim.SKY:
 		return _sky_material
 	if not _flat_materials.has(flat):
-		_flat_materials[flat] = _surface_material(sim.get_flat_name(flat), sim.get_flat_image(flat))
+		_flat_materials[flat] = _surface_material(sim.get_flat_name(flat), sim.get_flat_image(flat), true)
 	return _flat_materials[flat]
 
 
-## A wall texture or flat, lit by its sector's light.
-func _surface_material(label: String, image: Image) -> ShaderMaterial:
+## A wall texture, or a flat for a floor or ceiling, lit by its sector's
+## light.
+func _surface_material(label: String, image: Image, plane: bool) -> ShaderMaterial:
 	image.generate_mipmaps()
 	var material := ShaderMaterial.new()
 	material.resource_name = label
 	material.shader = SURFACE_SHADER
 	material.set_shader_parameter("albedo", ImageTexture.create_from_image(image))
 	material.set_shader_parameter("sector_lights", _sector_lights_texture)
+	material.set_shader_parameter("plane", plane)
 	return material
 
 

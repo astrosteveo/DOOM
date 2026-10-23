@@ -26,6 +26,8 @@ func _physics_process(_delta: float) -> void:
 	var state := sim.get_state()
 	if state["gamestate"] != 0:
 		return
+	RenderingServer.global_shader_parameter_set("extralight", state["extralight"])
+	RenderingServer.global_shader_parameter_set("fixedcolormap", state["fixedcolormap"])
 	if state["levelcount"] != _levelcount:
 		_levelcount = state["levelcount"]
 		level.build(sim)
