@@ -8,22 +8,29 @@ extends Node3D
 ## draws it, and nothing else. The player's keys and mouse go to the game
 ## through Input (DoomInput). Floors, ceilings and walls move between
 ## tics in the level's shaders, which read how far between tics a frame
-## is from tic_fraction.
+## is from tic_fraction. The game's sounds play from where they are in the
+## level (DoomSound), and its music as the game renders it (DoomMusic).
 ##
 ## Doom's command line goes after "--": godot --path godot -- -warp 1 1
 ## With none, the game runs its title loop and plays its demos. -classic,
 ## which the game ignores, leaves out Godot's lights, fog and glow, to
-## show the level lit only as Doom lights it, as the SDL3 build does.
+## show the level lit only as Doom lights it, as the SDL3 build does, and
+## plays the game's own mix of sound and music, in flat stereo as the SDL3
+## build plays it.
 
 @onready var sim: DoomSim = %Sim
 @onready var input: DoomInput = %Input
 @onready var screen: DoomScreen = %Screen
+@onready var sound: DoomSound = %Sound
+@onready var music: DoomMusic = %Music
 @onready var level: DoomLevel = %Level
 @onready var camera: Camera3D = %Camera
 @onready var muzzle_flash: OmniLight3D = %MuzzleFlash
 @onready var environment: Environment = %Environment.environment
 
 var _levelcount := 0
+## -classic: the game mixes its own sound, which DoomMusic plays.
+var _classic := false
 ## How far between tics frames are drawn, when 0 to 1, for looking at
 ## them under gdh, whose fixed frame rate keeps it near 0; below 0,
 ## frames are drawn where they come.
@@ -31,15 +38,18 @@ var fraction_override := -1.0
 
 
 func _ready() -> void:
-	var args := PackedStringArray(["-nosound", "-nogui"])
+	var args := PackedStringArray(["-nogui"])
 	args.append_array(OS.get_cmdline_user_args())
-	if args.has("-classic"):
+	_classic = args.has("-classic")
+	if _classic:
 		level.lights.visible = false
 		environment.glow_enabled = false
 		environment.volumetric_fog_enabled = false
+	sim.set_mix_sound(_classic)
 	input.ended.connect(_check)
 	if _check(sim.start(args)):
 		screen.start()
+		music.start(_classic)
 
 
 func _process(_delta: float) -> void:
@@ -51,6 +61,9 @@ func _process(_delta: float) -> void:
 		return
 	input.update()
 	var state := sim.get_state()
+	if not _classic:
+		sound.update(fraction, state)
+	music.update(state)
 	if not _check(screen.draw(fraction, state["palette"])):
 		return
 	# The 3D view shows only where the screen leaves room for it.

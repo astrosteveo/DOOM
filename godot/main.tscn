@@ -6,6 +6,8 @@
 [ext_resource type="Script" path="res://input/doom_input.gd" id="4"]
 [ext_resource type="Script" path="res://screen/doom_screen.gd" id="5"]
 [ext_resource type="Shader" path="res://screen/screen.gdshader" id="6"]
+[ext_resource type="Script" path="res://sound/doom_sound.gd" id="7"]
+[ext_resource type="Script" path="res://sound/doom_music.gd" id="8"]
 
 [sub_resource type="StandardMaterial3D" id="thing_material"]
 shading_mode = 0
@@ -110,3 +112,13 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 color = Color(0, 0, 0, 0)
+
+[node name="Sound" type="Node3D" parent="." node_paths=PackedStringArray("sim")]
+unique_name_in_owner = true
+script = ExtResource("7")
+sim = NodePath("../Sim")
+
+[node name="Music" type="AudioStreamPlayer" parent="." node_paths=PackedStringArray("sim")]
+unique_name_in_owner = true
+script = ExtResource("8")
+sim = NodePath("../Sim")
