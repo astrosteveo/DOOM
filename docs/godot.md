@@ -47,11 +47,13 @@ a unit of floor under a wall. Summed per sector with no slack, the shapes' areas
 enclose to 0.03% on E1M1 to E1M9.
 
 - `level.gd` builds a floor and a ceiling node per sector, once a level, at height 0. A moving floor or ceiling
-  moves its node, an animated flat swaps its material, and nothing is rebuilt.
+  moves its node to this tic's height, for culling, and the shader places the vertices between the old and new
+  heights (see Light). An animated flat swaps its material, and nothing is rebuilt.
 - Light stays out of the geometry. `surface.gdshader` reads each sector's light from a texture with a texel per
   sector, which walls, floors and ceilings share; a flickering light changes a texel. The wall mesh rebuilds only
-  when walls move or change texture. On demo1's E1M5, where lights change every tic, the median tic's script
-  time went from 2.4 ms (rebuilding the walls every tic) to 0.2 ms.
+  when a texture changes; doors and lifts move walls in the shaders, between tics (see Light). On demo1's E1M5,
+  where lights change every tic, the median tic's script time went from 2.4 ms (rebuilding the walls every tic) to
+  0.2 ms.
 - `sky.gdshader` draws the sky as `R_DrawPlanes` does, by the way each pixel looks: four times round, row 100 at
   the horizon, 160 rows to a unit of slope. It covers sky ceilings and floors, and the upper walls between two sky
   sectors, which Doom leaves undrawn so the sky shows. Godot's taller view sees above the sky's top row, which
