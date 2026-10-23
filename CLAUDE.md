@@ -23,8 +23,8 @@ simulation in C, presented by Godot as a modern 3D game with custom textures and
   (plain C, so C++ can include it; the engine's own headers don't compile as C++).
 - `godot/`: the Godot 4.7 project. `extension/` is the GDExtension (C++, godot-cpp fetched by CMake) with the
   `DoomSim` node; `main.tscn` runs it, `level/` builds the level from what it reads, `input/` posts the keyboard and
-  mouse to the game and `screen/` shows Doom's own 2D screen over the 3D view; `tools/run_demo.gd` plays a demo
-  headless.
+  mouse to the game, `screen/` shows Doom's own 2D screen over the 3D view and `sound/` plays its sounds and music;
+  `tools/run_demo.gd` plays a demo headless.
 - `third_party/nuked-opl3/`: the OPL3 emulator, vendored unmodified (LGPL 2.1+).
 - `ipx/`, `sersrc/`, `sndserv/`: the original DOS network drivers and Linux sound server. Not built.
 
@@ -48,6 +48,9 @@ fails for a reason unrelated to the change, say so and show the output instead o
 - For a change to what Godot shows: `gdh live start --project godot -- -iwad <path> -playdemo demo1`, step, and look;
   `-shotat` on the SDL3 build renders the same tic to compare. Add `-classic` to leave out Godot's lights, fog and
   glow, which the SDL3 build doesn't have.
+- For a change to sound: `gdh movie --project godot --out <dir> --seconds 25 -- -iwad <path>` records the title loop
+  with its sound; read `audio.png`. `-classic` plays the SDL3 build's own mix, to compare. `gdh live audio` measures
+  only what was mixed in real time, and a held game's players read as stopped.
 - For a visible change: run with `SDL_VIDEO_DRIVER=offscreen`, `-shotat <tic,...> -shotdir <dir>` (make the
   directory first: shots to a missing one are lost without a word) and, to drive the
   menus, `-inputscript <file>` (`<tic> <down|up|press> <key>` per line), then look at the PNGs.

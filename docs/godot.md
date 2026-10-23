@@ -134,11 +134,47 @@ and the mouse, using and pausing, plays back in the SDL3 build with the same `-h
 Doom, opening the menu while recording desyncs the demo: the menu stops the world in single player, and playback
 doesn't. The demo's name, path included, must fit `demoname`'s 31 characters.
 
+## Sound
+
+The game still decides what plays; Godot plays it. No audio device of the game's opens inside Godot.
+
+- **Which sounds, from the game.** s_sound keeps choosing channels as in 1997: a few channels (`snd_channels`), one
+  sound to a thing, the more important cutting off the less, nothing beyond 1200 units. Those rules stay the code the
+  SDL3 build runs, not a copy in the host that could drift from it. Under a host, i_sound mixes nothing: it keeps each
+  sound's volume and pitch, a tic moves it on by a tic's samples, and a sound ends a tic after its last one, so the
+  channel frees as the host finishes playing it. `DH_Tic` runs `S_UpdateSounds`, as `D_DoomLoop` does.
+  `DH_GetSounds` lists what plays, each with a handle, its volume, and where it comes from: a thing (by id, moving
+  between tics as the things do), a sector (doors and lifts, from the middle of the sector), a point (the switch return
+  sound, from wherever `P_UpdateSpecials`'s stray pointer says, as in vanilla), or nowhere, for the player's own sounds
+  and the menu's.
+- **Where from, by Godot; how loud, by Doom.** `DoomSound` plays each sound from the WAD's samples, on an
+  `AudioStreamPlayer3D` at its origin or an `AudioStreamPlayer` for local sounds. Godot gives the direction. Distance
+  stays Doom's: full within 160 units, fading in a straight line to nothing at 1200. Godot's inverse distance made a
+  monster across a room 6 to 12 dB quieter and then cut it off while still clearly heard. Levels were measured against
+  the SDL3 build: over demo1's first fighting the two come out the same, within 0.01 dB.
+- **Music.** The game renders its MUS music on the emulated OPL3 (`DH_RenderAudio`), and `DoomMusic` feeds it to an
+  `AudioStreamGenerator` each frame, as much as has played. The score moves on by the samples rendered, so it keeps
+  Godot's audio's time, whatever the frame rate. Rendered offline, it follows the SDL3 build's music within a few
+  percent, note for note: not sample for sample, since the OPL3's resampler starts each song at another phase. Under
+  gdh in real time, from 30 seconds to three minutes the generator didn't run dry once; it did in the first seconds,
+  as gdh let the held game run, and a hitch there shows as a moment of silence. An Ogg file named after a track's lump,
+  `music/d_e1m1.ogg` in the project or `user://`, plays in its place.
+- **Volumes.** `default_bus_layout.tres` has Master (with a limiter), SFX and Music. The menu's sound volume turns the
+  SFX bus, and the music volume the Music bus along DMX's own curve, measured: DMX caps each MIDI channel's volume, so
+  step 4 of 15 is -22.7 dB, not the -12 dB of a straight line. Pausing pauses the music as DMX does, the instruments
+  cut and the drums ringing out. `-nosound`, `-nosfx` and `-nomusic` work as in the SDL3 build.
+- **`-classic`** has the game mix it all as the SDL3 build does, flat stereo at the menu's volumes, through the same
+  mixing code, and plays that on Master.
+
+The pitches of sounds come from `M_Random`, not `P_Random`, and nothing in the simulation reads what s_sound does, so
+sound can't change how the game plays: `tools/run_demo.gd` now runs with sound on, and the three demos log the same
+`-hashlog` as the SDL3 build.
+
 ## After it
 
 1. ~~Floors and ceilings: polygons rebuilt from the BSP tree, since Doom never stored them. Sky.~~ Done, above.
 2. ~~Sector lighting, then Godot's: lights for lamps and fireballs, fog, glow.~~ Done, above.
 3. ~~Input, menus and the status bar, so the game can be played, not only watched.~~ Done, above.
-4. Sound and music through Godot's audio.
+4. ~~Sound and music through Godot's audio.~~ Done, above.
 5. Content: a definitions file mapping Doom's textures, flats and things to easel's PBR materials and GLB
    props, then models with animations for monsters once easel's character kind exists.
