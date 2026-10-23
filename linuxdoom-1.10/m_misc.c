@@ -218,6 +218,7 @@ extern int	smooth_scaling;
 extern int	grabmouse;
 extern int	mouse_novert;
 extern int	snd_samplerate;
+extern int	opl_type;
 
 extern char*	chat_macros[];
 
@@ -286,6 +287,7 @@ default_t	defaults[] =
 
     DEFINT("snd_channels", numChannels, 8),
     DEFINT("snd_samplerate", snd_samplerate, 48000),
+    DEFINT("opl_type", opl_type, 3),
 
     DEFINT("usegamma", usegamma, 0),
 

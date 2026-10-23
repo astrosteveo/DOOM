@@ -80,8 +80,11 @@ add_executable(linuxdoom
   ${SRC}/z_zone.c
   ${SRC}/info.c
   ${SRC}/sounds.c
+  ${SRC}/i_oplmus.c
+  ${CMAKE_SOURCE_DIR}/third_party/nuked-opl3/opl3.c
 )
 
+target_include_directories(linuxdoom PRIVATE ${CMAKE_SOURCE_DIR}/third_party/nuked-opl3)
 target_compile_definitions(linuxdoom PRIVATE NORMALUNIX LINUX)
 # The game logic was written for (and its demos recorded with) a compiler
 # that let signed arithmetic wrap and didn't reason about aliasing; an

@@ -17,8 +17,8 @@
 //
 // DESCRIPTION:
 //	System interface for sound, on SDL3.
-//	Sound effects are mixed here, in the audio callback; this
-//	replaces the separate sndserver process.
+//	Sound effects are mixed here, in the audio callback, together
+//	with OPL music; this replaces the separate sndserver process.
 //
 //-----------------------------------------------------------------------------
 
@@ -33,6 +33,7 @@
 
 #include "i_system.h"
 #include "i_sound.h"
+#include "i_oplmus.h"
 #include "m_argv.h"
 #include "m_misc.h"
 #include "w_wad.h"
@@ -42,6 +43,7 @@
 
 // Options, saved in the config file.
 int		snd_samplerate = 48000;
+int		opl_type = 3;		// 2 for OPL2 (9 voices, mono), 3 for OPL3
 int		snd_pitchshift = 0;	// v1.9 played every sound at its own pitch
 
 
@@ -50,6 +52,7 @@ int		snd_pitchshift = 0;	// v1.9 played every sound at its own pitch
 
 // Output gain of each part of the mix.
 #define SFX_GAIN		0.9f
+#define MUSIC_GAIN		1.6f
 
 typedef struct
 {
@@ -79,8 +82,10 @@ static int		nexthandle = 1;
 
 static boolean		nosfx;
 static boolean		nomusic;
+static boolean		musicready;
 
 static float*		mixbuffer;
+static short*		musicbuffer;
 static int		mixbufferframes;
 
 
@@ -260,6 +265,13 @@ static void SDLCALL AudioCallback (void* userdata, SDL_AudioStream* astream,
 
 	if (!nosfx)
 	    MixSfx (mixbuffer, chunk);
+
+	if (musicready)
+	{
+	    OPLMUS_Render (musicbuffer, chunk);
+	    for (i=0 ; i<chunk*2 ; i++)
+		mixbuffer[i] += musicbuffer[i] * (MUSIC_GAIN / 32768.0f);
+	}
 
 	// Soft clip rather than wrap or square off.
 	for (i=0 ; i<chunk*2 ; i++)
@@ -466,6 +478,7 @@ I_InitSound()
 
     mixbufferframes = 1024;
     mixbuffer = malloc (mixbufferframes * 2 * sizeof(float));
+    musicbuffer = malloc (mixbufferframes * 2 * sizeof(short));
 
     stream = SDL_OpenAudioDeviceStream (SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
 					&spec, AudioCallback, NULL);
@@ -490,44 +503,122 @@ I_InitSound()
 
 //
 // MUSIC API.
-// No music yet.
 //
+
+static const byte*	songdata;
+static int		songlength;
 
 void I_InitMusic(void)
 {
+    int		lump;
+    const byte*	genmidi;
+
+    if (!stream || nomusic)
+	return;
+
+    lump = W_CheckNumForName ("GENMIDI");
+    if (lump < 0)
+    {
+	fprintf (stderr, "I_InitMusic: no GENMIDI lump, music disabled\n");
+	return;
+    }
+    genmidi = W_CacheLumpNum (lump, PU_STATIC);
+
+    LockAudio ();
+    musicready = OPLMUS_Init (outrate, opl_type != 2,
+			      genmidi, W_LumpLength (lump));
+    UnlockAudio ();
+
+    if (!musicready)
+	fprintf (stderr, "I_InitMusic: bad GENMIDI lump, music disabled\n");
+    else
+	fprintf (stderr, "I_InitMusic: %s music\n",
+		 opl_type != 2 ? "OPL3" : "OPL2");
 }
 
 void I_ShutdownMusic(void)
 {
+    if (!musicready)
+	return;
+
+    LockAudio ();
+    OPLMUS_Shutdown ();
+    musicready = false;
+    UnlockAudio ();
 }
 
 void I_SetMusicVolume(int volume)
 {
     // Internal state variable.
     snd_MusicVolume = volume;
+
+    LockAudio ();
+    OPLMUS_SetVolume (volume);
+    UnlockAudio ();
 }
 
 void I_PlaySong(int handle, int looping)
 {
+    if (!musicready || !songdata)
+	return;
+
+    LockAudio ();
+    OPLMUS_Play (songdata, songlength, looping);
+    UnlockAudio ();
 }
 
 void I_PauseSong (int handle)
 {
+    LockAudio ();
+    OPLMUS_Pause (true);
+    UnlockAudio ();
 }
 
 void I_ResumeSong (int handle)
 {
+    LockAudio ();
+    OPLMUS_Pause (false);
+    UnlockAudio ();
 }
 
 void I_StopSong(int handle)
 {
+    LockAudio ();
+    OPLMUS_Stop ();
+    UnlockAudio ();
 }
 
 void I_UnRegisterSong(int handle)
 {
+    LockAudio ();
+    OPLMUS_Stop ();
+    songdata = NULL;
+    songlength = 0;
+    UnlockAudio ();
 }
 
-int I_RegisterSong(void* data)
+int I_RegisterSong(void* data, int length)
 {
+    if (!OPLMUS_IsMUS (data, length))
+    {
+	// PWADs often carry MIDI music, which isn't supported yet.
+	fprintf (stderr, "I_RegisterSong: not a MUS lump, skipping\n");
+	songdata = NULL;
+	return 0;
+    }
+
+    songdata = data;
+    songlength = length;
     return 1;
+}
+
+// Is the song playing?
+int I_QrySongPlaying(int handle)
+{
+    int		playing;
+
+    LockAudio ();
+    playing = OPLMUS_Playing ();
+    UnlockAudio ();
+    return playing;
 }
