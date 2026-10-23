@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
+#include <strings.h>
 
 #include <SDL3/SDL.h>
 
@@ -34,6 +36,7 @@
 #include "v_video.h"
 #include "m_argv.h"
 #include "d_main.h"
+#include "d_iwad.h"
 
 #include "doomdef.h"
 
@@ -78,6 +81,15 @@ static boolean		resizepending;
 // Command line overrides, which unlike the options aren't saved.
 static boolean		nograbmouse;
 static int		scaleoverride;
+
+// Screenshots: the PrintScreen key, and -shotat <tic,tic,...> for
+// capturing particular moments of a demo into -shotdir.
+static boolean		screenshotpending;
+#define MAXSHOTTICS	64
+static int		shottics[MAXSHOTTICS];
+static int		numshottics;
+static int		nextshot;
+static char*		shotdir;
 
 static boolean		mousegrabbed;
 static float		mouseaccumx;
@@ -170,6 +182,97 @@ static int TranslateScancode (SDL_Scancode sc)
 
 
 //
+// Input scripts, for testing: -inputscript <file> plays key events at
+// given tics. Each line is "<tic> <down|up|press> <key>", where key is
+// a character or one of the names below.
+//
+typedef struct
+{
+    int		tic;
+    int		type;
+    int		key;
+} scriptevent_t;
+
+#define MAXSCRIPTEVENTS	1024
+static scriptevent_t	scriptevents[MAXSCRIPTEVENTS];
+static int		numscriptevents;
+static int		nextscriptevent;
+
+static int ScriptKeyByName (const char* name)
+{
+    static const struct { const char* name; int key; } names[] =
+    {
+	{ "escape", KEY_ESCAPE }, { "enter", KEY_ENTER }, { "tab", KEY_TAB },
+	{ "up", KEY_UPARROW }, { "down", KEY_DOWNARROW },
+	{ "left", KEY_LEFTARROW }, { "right", KEY_RIGHTARROW },
+	{ "space", ' ' }, { "backspace", KEY_BACKSPACE },
+	{ "ctrl", KEY_RCTRL }, { "shift", KEY_RSHIFT }, { "alt", KEY_RALT },
+	{ "f1", KEY_F1 }, { "f2", KEY_F2 }, { "f3", KEY_F3 }, { "f4", KEY_F4 },
+	{ "f5", KEY_F5 }, { "f6", KEY_F6 }, { "f7", KEY_F7 }, { "f8", KEY_F8 },
+	{ "f9", KEY_F9 }, { "f10", KEY_F10 }, { "f11", KEY_F11 },
+	{ "f12", KEY_F12 }, { "pause", KEY_PAUSE },
+	{ "equals", KEY_EQUALS }, { "minus", KEY_MINUS },
+    };
+    unsigned	i;
+
+    if (strlen (name) == 1)
+	return name[0];
+    for (i=0 ; i<sizeof(names)/sizeof(names[0]) ; i++)
+	if (!strcasecmp (name, names[i].name))
+	    return names[i].key;
+    return 0;
+}
+
+static void LoadInputScript (const char* path)
+{
+    FILE*	f;
+    char	line[256];
+    char	action[32];
+    char	keyname[32];
+    int		tic;
+    int		key;
+
+    f = fopen (path, "r");
+    if (!f)
+	I_Error ("Could not open input script %s", path);
+
+    while (fgets (line, sizeof(line), f) && numscriptevents < MAXSCRIPTEVENTS-1)
+    {
+	if (sscanf (line, "%d %31s %31s", &tic, action, keyname) != 3)
+	    continue;
+	key = ScriptKeyByName (keyname);
+	if (!key)
+	    I_Error ("Input script: unknown key '%s'", keyname);
+
+	if (!strcmp (action, "up"))
+	    scriptevents[numscriptevents++] = (scriptevent_t){ tic, ev_keyup, key };
+	else
+	{
+	    scriptevents[numscriptevents++] = (scriptevent_t){ tic, ev_keydown, key };
+	    if (!strcmp (action, "press"))
+		scriptevents[numscriptevents++] = (scriptevent_t){ tic+1, ev_keyup, key };
+	}
+    }
+    fclose (f);
+}
+
+static void PostScriptEvents (void)
+{
+    event_t	event;
+
+    while (nextscriptevent < numscriptevents
+	   && scriptevents[nextscriptevent].tic <= gametic)
+    {
+	event.type = scriptevents[nextscriptevent].type;
+	event.data1 = scriptevents[nextscriptevent].key;
+	event.data2 = event.data3 = 0;
+	D_PostEvent (&event);
+	nextscriptevent++;
+    }
+}
+
+
+//
 // UpdateMouseGrab
 // The mouse belongs to the game only while a level is being played;
 // menus, pauses, demos and other windows get the cursor back.
@@ -234,6 +337,12 @@ static void ToggleFullscreen (void)
 static void HandleKey (SDL_KeyboardEvent* key)
 {
     event_t	event;
+
+    if (key->down && key->scancode == SDL_SCANCODE_PRINTSCREEN)
+    {
+	screenshotpending = true;
+	return;
+    }
 
     // Alt+Enter is the usual fullscreen toggle; keep it from the game.
     if (key->down && key->scancode == SDL_SCANCODE_RETURN
@@ -366,6 +475,8 @@ void I_StartTic (void)
     UpdateMouseGrab ();
     if (mousegrabbed || mousechanged)
 	PostMouseEvent ();
+
+    PostScriptEvents ();
 }
 
 
@@ -457,6 +568,56 @@ static boolean UpdateUpscaleTexture (const SDL_FRect* dest)
 }
 
 //
+// SaveScreenshot
+// Saves what is about to be presented, at the window's resolution.
+//
+static void SaveScreenshot (const char* path)
+{
+    SDL_Surface*	shot;
+
+    shot = SDL_RenderReadPixels (renderer, NULL);
+    if (!shot)
+    {
+	fprintf (stderr, "Screenshot failed: %s\n", SDL_GetError ());
+	return;
+    }
+    if (SDL_SavePNG (shot, path))
+	fprintf (stderr, "Saved %s\n", path);
+    else
+	fprintf (stderr, "Could not save %s: %s\n", path, SDL_GetError ());
+    SDL_DestroySurface (shot);
+}
+
+static void TakeScreenshots (void)
+{
+    char	path[1024];
+    char	dir[1024];
+    time_t	now;
+    struct tm*	tm;
+
+    if (screenshotpending)
+    {
+	screenshotpending = false;
+	snprintf (dir, sizeof(dir), "%s/screenshots", I_DataDir ());
+	I_MakeDirectory (dir);
+	now = time (NULL);
+	tm = localtime (&now);
+	snprintf (path, sizeof(path), "%s/%s-%04d%02d%02d-%02d%02d%02d.png",
+		  dir, D_IWADBaseName (), tm->tm_year+1900, tm->tm_mon+1,
+		  tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+	SaveScreenshot (path);
+    }
+
+    if (nextshot < numshottics && gametic >= shottics[nextshot])
+    {
+	snprintf (path, sizeof(path), "%s/shot-%06d.png",
+		  shotdir ? shotdir : ".", gametic);
+	SaveScreenshot (path);
+	nextshot++;
+    }
+}
+
+//
 // I_FinishUpdate
 //
 void I_FinishUpdate (void)
@@ -524,6 +685,7 @@ void I_FinishUpdate (void)
 	SDL_RenderTexture (renderer, screentex, NULL, &destrect);
     }
 
+    TakeScreenshots ();
     SDL_RenderPresent (renderer);
 }
 
@@ -683,9 +845,30 @@ void I_InitGraphics(void)
 	nograbmouse = true;
     {
 	int	p = M_CheckParm ("-scale");
+	char*	s;
 
 	if (p && p < myargc-1)
 	    scaleoverride = atoi (myargv[p+1]);
+
+	p = M_CheckParm ("-shotat");
+	if (p && p < myargc-1)
+	{
+	    for (s = myargv[p+1] ; *s && numshottics < MAXSHOTTICS ; )
+	    {
+		shottics[numshottics++] = strtol (s, &s, 10);
+		if (*s == ',')
+		    s++;
+		else
+		    break;
+	    }
+	}
+	p = M_CheckParm ("-shotdir");
+	if (p && p < myargc-1)
+	    shotdir = myargv[p+1];
+
+	p = M_CheckParm ("-inputscript");
+	if (p && p < myargc-1)
+	    LoadInputScript (myargv[p+1]);
     }
 
     if (!SDL_InitSubSystem (SDL_INIT_VIDEO))
