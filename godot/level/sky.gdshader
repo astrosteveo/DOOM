@@ -1,12 +1,19 @@
 // The sky, on sky ceilings and the walls that show it, as R_DrawPlanes
 // draws it: by the way each pixel looks, not mapped onto the surface,
-// and at full brightness.
+// and at full brightness. Those move between tics as other walls and
+// ceilings do.
 shader_type spatial;
 render_mode unshaded;
+
+#include "res://level/doom_planes.gdshaderinc"
 
 uniform sampler2D sky : source_color, filter_nearest, repeat_enable;
 // The top row's average, which looks above it fade to.
 uniform vec3 above : source_color;
+
+void vertex() {
+	doom_place(VERTEX, UV, CUSTOM0, MODEL_MATRIX[3].xyz);
+}
 
 void fragment() {
 	// Doom gives a turn 1024 columns, so a 256 wide sky goes round four

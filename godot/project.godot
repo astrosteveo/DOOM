@@ -29,3 +29,19 @@ fixedcolormap={
 "type": "int",
 "value": 0
 }
+sector_lights={
+"type": "sampler2D",
+"value": ""
+}
+sector_heights={
+"type": "sampler2D",
+"value": ""
+}
+sector_old_heights={
+"type": "sampler2D",
+"value": ""
+}
+tic_fraction={
+"type": "float",
+"value": 1.0
+}
