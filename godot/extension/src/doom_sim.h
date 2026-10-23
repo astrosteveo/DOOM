@@ -3,7 +3,8 @@
 // It hands Godot the game's state, walls, sectors, things, textures and
 // flats as Doom has them, in map units; the scripts turn them into
 // Godot's space. Doom draws its own 2D screen, which Godot shows over
-// the 3D view.
+// the 3D view. The game picks the sounds that play, and renders the
+// music; Godot plays them, opening no audio device of the game's.
 // It reads the game and never writes it; the player's keys and mouse
 // go in as Doom's own input events, so demos play as they do in the
 // SDL3 build.
@@ -11,12 +12,14 @@
 #ifndef DOOM_SIM_H
 #define DOOM_SIM_H
 
+#include <godot_cpp/classes/audio_stream_wav.hpp>
 #include <godot_cpp/classes/global_constants.hpp>
 #include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/variant/color.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
+#include <godot_cpp/variant/packed_vector2_array.hpp>
 #include <godot_cpp/variant/string.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
 
@@ -60,6 +63,15 @@ public:
 		CONTROL_RUN,
 	};
 
+	// Where a sound comes from, as d_host.h's DH_SOUND_LOCAL etc.
+	enum SoundOrigin {
+		SOUND_LOCAL = 0,
+		SOUND_THING = 1,
+		SOUND_SECTOR = 2,
+		SOUND_POINT = 3,
+	};
+
+	void set_mix_sound(bool p_mix);
 	int start(const PackedStringArray &p_args);
 	int tic();
 	bool is_started() const { return started; }
@@ -84,6 +96,13 @@ public:
 	String get_flat_name(int p_flat) const;
 	Ref<Image> get_flat_image(int p_flat) const;
 
+	Dictionary get_sounds() const;
+	String get_sound_name(int p_sfx) const;
+	Ref<AudioStreamWAV> get_sound(int p_sfx) const;
+	Dictionary get_music() const;
+	int get_sample_rate() const;
+	PackedVector2Array render_audio(int p_frames);
+
 protected:
 	static void _bind_methods();
 
@@ -99,5 +118,6 @@ private:
 VARIANT_ENUM_CAST(DoomSim::Status);
 VARIANT_ENUM_CAST(DoomSim::EventType);
 VARIANT_ENUM_CAST(DoomSim::Control);
+VARIANT_ENUM_CAST(DoomSim::SoundOrigin);
 
 #endif

@@ -86,6 +86,24 @@ I_UpdateSoundParams
 
 
 //
+//  A HOST'S SOUND (d_host.c)
+//
+// Before I_InitSound: open no device, for a host that plays the sounds
+// itself, or the whole mix from I_RenderAudio if mix is set.
+void I_SetHostSound (boolean mix);
+// Moves the sounds on a tic, as far as the host has played them.
+void I_HostSoundTic (void);
+// A sound effect's 8-bit unsigned samples; NULL if there are none.
+const byte* I_SfxSamples (int id, int* length, int* rate);
+// A playing sound's volume, separation and speed; false if stopped.
+boolean I_HostSoundParams (int handle, int* vol, int* sep, float* speed);
+int I_SampleRate (void);
+boolean I_MusicOn (void);
+// The next frames, interleaved stereo: music, and sound if mixed.
+void I_RenderAudio (float* out, int frames);
+
+
+//
 //  MUSIC I/O
 //
 void I_InitMusic(void);

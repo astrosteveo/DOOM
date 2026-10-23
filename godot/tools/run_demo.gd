@@ -5,12 +5,14 @@ extends SceneTree
 ##   godot --headless --path godot -s res://tools/run_demo.gd -- -playdemo demo1 -hashlog demo1.txt
 ##
 ## Everything after "--" is Doom's command line. Exits 0 when the game
-## quits (as -playdemo does when the demo ends), 1 on an error.
+## quits (as -playdemo does when the demo ends), 1 on an error. The game's
+## sound runs, which must not change how the demo plays, though nothing
+## plays it; -nosound turns it off.
 
 
 func _initialize() -> void:
 	var sim := DoomSim.new()
-	var args := PackedStringArray(["-nosound", "-nogui"])
+	var args := PackedStringArray(["-nogui"])
 	args.append_array(OS.get_cmdline_user_args())
 
 	var status := sim.start(args)

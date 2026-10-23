@@ -15,9 +15,12 @@
 //
 //-----------------------------------------------------------------------------
 
+#include <ctype.h>
 #include <math.h>
 #include <setjmp.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -26,6 +29,7 @@
 #include "d_main.h"
 #include "g_game.h"
 #include "hu_stuff.h"
+#include "i_sound.h"
 #include "i_video.h"
 #include "i_system.h"
 #include "m_argv.h"
@@ -36,6 +40,7 @@
 #include "r_main.h"
 #include "r_sky.h"
 #include "r_state.h"
+#include "s_sound.h"
 #include "st_stuff.h"
 #include "v_video.h"
 #include "w_wad.h"
@@ -57,6 +62,9 @@ extern int	key_use;
 extern int	key_strafe;
 extern int	key_speed;
 extern int	mouse_novert;
+extern int	numChannels;
+extern int	snd_SfxVolume;
+extern int	snd_MusicVolume;
 
 static jmp_buf	hostreturn;
 static int	ended;
@@ -66,6 +74,7 @@ static int	lastepisode;
 static int	lastmap;
 static int	lastnumlines;
 static int	lastleveltime;
+static boolean	mixsound;
 
 
 //
@@ -90,6 +99,8 @@ int DH_Start (int argc, char** argv)
     // No window: the host shows the frame, and draws the 3D view.
     I_SetHostScreen (640, 480);
     hostview = true;
+    // No audio device: the host plays the sound.
+    I_SetHostSound (mixsound);
 
     D_DoomSetup ();
     D_StartLoop ();
@@ -136,6 +147,9 @@ int DH_Tic (void)
 
     D_RunTic ();
     NoteLevel ();
+    // As D_DoomLoop does after its tics.
+    S_UpdateSounds (players[consoleplayer].mo);
+    I_HostSoundTic ();
     return DH_RUNNING;
 }
 
@@ -228,6 +242,8 @@ void DH_GetState (dh_state_t* state)
     state->paused = paused;
     state->demoplayback = demoplayback;
     state->automap = automapactive;
+    state->sfxvolume = snd_SfxVolume;
+    state->musicvolume = snd_MusicVolume;
 }
 
 
@@ -1093,4 +1109,190 @@ void DH_FlatRGBA (int flat, unsigned char* rgba)
 	rgba[i*4+2] = c[2];
 	rgba[i*4+3] = 255;
     }
+}
+
+
+//
+// Sound
+// s_sound picks what plays, on its channels, as for the SDL3 build;
+// i_sound keeps each playing sound's volume and pitch, and moves it on
+// by the tic; the host plays them.
+//
+void DH_MixSound (int mix)
+{
+    mixsound = mix != 0;
+}
+
+
+//
+// SoundOrigin
+// Where a sound comes from. s_sound takes every origin for a mobj, but
+// doors and lifts sound from their sector's soundorg, which is only a
+// mobj's thinker and x, y and z; and a switch's return sound comes from
+// its button's soundorg field, which isn't even that (P_UpdateSpecials),
+// so Doom hears it wherever that memory says.
+//
+static void SoundOrigin (void* origin, dh_sound_t* s)
+{
+    mobj_t*	mo;
+    mobj_t*	listener;
+    sector_t*	sec;
+    uintptr_t	offset;
+
+    s->id = 0;
+    s->x = s->y = s->z = 0;
+    listener = players[consoleplayer].mo;
+    if (!origin || origin == listener)
+    {
+	s->origin = DH_SOUND_LOCAL;
+	s->oldx = s->oldy = s->oldz = 0;
+	return;
+    }
+
+    offset = (uintptr_t)origin - (uintptr_t)sectors;
+    if (sectors && (uintptr_t)origin >= (uintptr_t)sectors
+	&& offset < numsectors * sizeof(sector_t)
+	&& offset % sizeof(sector_t) == offsetof (sector_t, soundorg))
+    {
+	sec = &sectors[offset / sizeof(sector_t)];
+	s->origin = DH_SOUND_SECTOR;
+	s->id = sec - sectors;
+	s->x = Units (sec->soundorg.x);
+	s->y = Units (sec->soundorg.y);
+	s->z = Units (sec->floorheight/2 + sec->ceilingheight/2);
+	s->oldx = s->x;
+	s->oldy = s->y;
+	s->oldz = s->z;
+	return;
+    }
+
+    mo = (mobj_t *)origin;
+    if (mo->thinker.function.acp1 == (actionf_p1)P_MobjThinker)
+    {
+	s->origin = DH_SOUND_THING;
+	s->id = mo->id;
+	s->x = Units (mo->x);
+	s->y = Units (mo->y);
+	s->z = Units (mo->z + mo->height/2);
+	if (Moved () && mo->interp)
+	{
+	    s->oldx = Units (mo->oldx);
+	    s->oldy = Units (mo->oldy);
+	    s->oldz = Units (mo->oldz + mo->height/2);
+	}
+	else
+	{
+	    s->oldx = s->x;
+	    s->oldy = s->y;
+	    s->oldz = s->z;
+	}
+	return;
+    }
+
+    // Doom hears in two dimensions; this one is at the eye's height.
+    s->origin = DH_SOUND_POINT;
+    s->x = Units (mo->x);
+    s->y = Units (mo->y);
+    s->z = listener ? Units (players[consoleplayer].viewz) : 0;
+    s->oldx = s->x;
+    s->oldy = s->y;
+    s->oldz = s->z;
+}
+
+
+//
+// DH_GetSounds
+//
+int DH_GetSounds (dh_sound_t* sounds, int max)
+{
+    int		cnum;
+    int		count;
+    void*	origin;
+    int		sfx;
+    int		handle;
+    int		vol;
+    int		sep;
+    float	speed;
+    dh_sound_t*	s;
+
+    count = 0;
+    for (cnum=0 ; cnum<numChannels ; cnum++)
+    {
+	if (!S_GetChannel (cnum, &origin, &sfx, &handle)
+	    || !I_HostSoundParams (handle, &vol, &sep, &speed))
+	    continue;
+	if (sounds && count < max)
+	{
+	    s = &sounds[count];
+	    s->handle = handle;
+	    s->sfx = sfx;
+	    s->volume = vol;
+	    s->sep = sep;
+	    s->speed = speed;
+	    SoundOrigin (origin, s);
+	}
+	count++;
+    }
+    return count;
+}
+
+
+//
+// DH_SoundInfo
+//
+int DH_SoundInfo (int sfx, char name[9], int* rate, int* length)
+{
+    if (!I_SfxSamples (sfx, length, rate))
+	return 0;
+    snprintf (name, 9, "DS%s", S_sfx[sfx].name);
+    for ( ; *name ; name++)
+	*name = toupper (*name);
+    return 1;
+}
+
+
+//
+// DH_SoundSamples
+//
+void DH_SoundSamples (int sfx, unsigned char* samples)
+{
+    const byte*	data;
+    int		length;
+    int		rate;
+
+    data = I_SfxSamples (sfx, &length, &rate);
+    if (data)
+	memcpy (samples, data, length);
+}
+
+
+//
+// DH_GetMusic
+//
+int DH_GetMusic (dh_music_t* music)
+{
+    int		lump;
+    int		looping;
+    int		paused;
+
+    lump = S_GetMusic (&looping, &paused);
+    if (lump < 0 || !I_MusicOn ())
+	return 0;
+    memcpy (music->name, lumpinfo[lump].name, 8);
+    music->name[8] = 0;
+    music->looping = looping;
+    music->paused = paused;
+    return 1;
+}
+
+
+int DH_SampleRate (void)
+{
+    return I_SampleRate ();
+}
+
+
+void DH_RenderAudio (float* stereo, int frames)
+{
+    I_RenderAudio (stereo, frames);
 }

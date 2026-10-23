@@ -42,6 +42,13 @@ enum
 // must outlive the game. Only one game runs in a process.
 int		DH_Start (int argc, char** argv);
 
+// How the host plays the game's sound, set before DH_Start; no audio
+// device is opened either way. By default the host plays each sound
+// itself, from DH_GetSounds, and the music from DH_RenderAudio. With
+// mix set, DH_RenderAudio gives the whole mix instead, music and sound
+// as the SDL3 build plays them, at the menu's volumes.
+void		DH_MixSound (int mix);
+
 // Runs one tic. Once the game has ended, returns how it ended
 // without running anything.
 int		DH_Tic (void);
@@ -90,6 +97,9 @@ typedef struct
     // pickup, 13 green for the radiation suit. DH_PaletteTint says
     // what each looks like.
     int		palette;
+    // The menu's sound and music volumes, 0 to 127.
+    int		sfxvolume;
+    int		musicvolume;
 } dh_state_t;
 
 void		DH_GetState (dh_state_t* state);
@@ -323,6 +333,73 @@ int		DH_FlatInfo (int flat, char name[9]);
 // A flat as DH_FLATSIZE*DH_FLATSIZE RGBA pixels, row by row, in the
 // game's palette at full brightness.
 void		DH_FlatRGBA (int flat, unsigned char* rgba);
+
+// Sound. The game decides what plays as it does for the SDL3 build:
+// a few channels, one sound to a thing, the more important sound
+// cutting off the less, and nothing beyond 1200 units. The host plays
+// what DH_GetSounds says is playing. Where a sound comes from:
+enum
+{
+    DH_SOUND_LOCAL,	// nowhere: the player's own sounds and the menu's
+    DH_SOUND_THING,	// a thing, by its id; it moves with the thing
+    DH_SOUND_SECTOR,	// a door, lift or floor: the sector's middle
+    DH_SOUND_POINT	// somewhere else on the map
+};
+
+typedef struct
+{
+    // A new handle each time a sound starts, which stays the same
+    // until it stops: when the sound ends, is cut off, or its thing
+    // goes, it is no longer listed.
+    int		handle;
+    int		sfx;		// for DH_SoundInfo
+    // As Doom would play it: the volume, 0 to 127, the menu's sound
+    // volume less for distance; the stereo separation, 0 all left,
+    // 128 the middle and 255 all right; and how many times faster than
+    // its own rate it plays, 1 unless the config shifts pitches.
+    int		volume;
+    int		sep;
+    float	speed;
+    int		origin;		// DH_SOUND_
+    int		id;		// the thing's id, or the sector's number
+    // Where it is, in map units, and was a tic before, as for things:
+    // a thing's middle, the sector's middle between floor and
+    // ceiling, or a point at the height of the player's eye. 0 for a
+    // local sound.
+    float	x, y, z;
+    float	oldx, oldy, oldz;
+} dh_sound_t;
+
+// The same for the sounds playing now, as DH_GetThings. They change
+// on tics and when an event makes a menu sound.
+int		DH_GetSounds (dh_sound_t* sounds, int max);
+
+// A sound effect's lump name, its rate (samples a second) and length;
+// 0 when there is no such sound, or it has no samples, as for Doom II
+// sounds in Doom. Sounds are numbered from 1.
+int		DH_SoundInfo (int sfx, char name[9], int* rate, int* length);
+
+// Its samples, 8-bit unsigned, 128 the middle.
+void		DH_SoundSamples (int sfx, unsigned char* samples);
+
+typedef struct
+{
+    char	name[9];	// the lump, D_E1M1 and so on
+    int		looping;	// it starts over at the end
+    int		paused;		// with the game; it goes on from there
+} dh_music_t;
+
+// The music playing, if any: 0 when none, or the music is off.
+int		DH_GetMusic (dh_music_t* music);
+
+// The rate DH_RenderAudio renders at, samples a second.
+int		DH_SampleRate (void);
+
+// The next frames of the music, interleaved stereo, -1 to 1: and of
+// the sounds too, mixed, with DH_MixSound. The music moves on by as
+// many frames as the host renders, so it keeps time with the host's
+// audio, not its frame rate. Silence when the sound is off.
+void		DH_RenderAudio (float* stereo, int frames);
 
 #ifdef __cplusplus
 }

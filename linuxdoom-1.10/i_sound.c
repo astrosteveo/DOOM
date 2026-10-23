@@ -19,6 +19,9 @@
 //	System interface for sound, on SDL3.
 //	Sound effects are mixed here, in the audio callback, together
 //	with OPL music; this replaces the separate sndserver process.
+//	Under a host (d_host.c) no device is opened: the host plays the
+//	sound effects itself and pulls the music, or the whole mix, from
+//	I_RenderAudio.
 //
 //-----------------------------------------------------------------------------
 
@@ -70,11 +73,19 @@ typedef struct
     Uint64		step;		// per output frame
     float		leftgain;
     float		rightgain;
+    int			vol;		// as s_sound last gave them
+    int			sep;
+    int			pitch;
 } mixchannel_t;
 
 
 static SDL_AudioStream*	stream;
+static boolean		opened;		// the device, or the host's sound
 static int		outrate;
+
+// A host plays the sounds; hostmix when it plays the mix instead.
+static boolean		hostsound;
+static boolean		hostmix;
 
 static sfxdata_t	sfxdata[NUMSFX];
 static mixchannel_t	mixchannels[NUM_MIXCHANNELS];
@@ -188,6 +199,9 @@ static void SetChannelParams (mixchannel_t* c, int vol, int sep, int pitch)
     if (right > 255) right = 255;
     c->leftgain = left / 255.0f;
     c->rightgain = right / 255.0f;
+    c->vol = vol;
+    c->sep = sep;
+    c->pitch = pitch;
 
     ratio = (double)c->sfx->rate / outrate;
     if (snd_pitchshift)
@@ -256,45 +270,55 @@ static void MixSfx (float* out, int frames)
     }
 }
 
+//
+// Mix
+// Up to mixbufferframes of the music, and of the sound effects too
+// when sfx is set, into out.
+//
+static void Mix (float* out, int frames, boolean sfx)
+{
+    int		i;
+    float	v;
+
+    memset (out, 0, frames * 2 * sizeof(float));
+
+    if (sfx && !nosfx)
+	MixSfx (out, frames);
+
+    if (musicready)
+    {
+	OPLMUS_Render (musicbuffer, frames);
+	for (i=0 ; i<frames*2 ; i++)
+	{
+	    float	in = musicbuffer[i] * (MUSIC_GAIN / 32768.0f);
+	    float	o = in - dcblockin[i&1] + dcblockcoef * dcblockout[i&1];
+
+	    dcblockin[i&1] = in;
+	    dcblockout[i&1] = o;
+	    out[i] += o;
+	}
+    }
+
+    // Soft clip rather than wrap or square off.
+    for (i=0 ; i<frames*2 ; i++)
+    {
+	v = out[i];
+	if (v > 1.0f || v < -1.0f)
+	    out[i] = tanhf (v);
+    }
+}
+
 static void SDLCALL AudioCallback (void* userdata, SDL_AudioStream* astream,
 				   int additional, int total)
 {
     int		frames;
     int		chunk;
-    int		i;
-    float	v;
 
     frames = additional / (2 * sizeof(float));
     while (frames > 0)
     {
 	chunk = frames < mixbufferframes ? frames : mixbufferframes;
-	memset (mixbuffer, 0, chunk * 2 * sizeof(float));
-
-	if (!nosfx)
-	    MixSfx (mixbuffer, chunk);
-
-	if (musicready)
-	{
-	    OPLMUS_Render (musicbuffer, chunk);
-	    for (i=0 ; i<chunk*2 ; i++)
-	    {
-		float	in = musicbuffer[i] * (MUSIC_GAIN / 32768.0f);
-		float	out = in - dcblockin[i&1] + dcblockcoef * dcblockout[i&1];
-
-		dcblockin[i&1] = in;
-		dcblockout[i&1] = out;
-		mixbuffer[i] += out;
-	    }
-	}
-
-	// Soft clip rather than wrap or square off.
-	for (i=0 ; i<chunk*2 ; i++)
-	{
-	    v = mixbuffer[i];
-	    if (v > 1.0f || v < -1.0f)
-		mixbuffer[i] = tanhf (v);
-	}
-
+	Mix (mixbuffer, chunk, true);
 	SDL_PutAudioStreamData (astream, mixbuffer, chunk * 2 * sizeof(float));
 	frames -= chunk;
     }
@@ -368,7 +392,7 @@ I_StartSound
     mixchannel_t*	c;
     int			handle;
 
-    if (!stream || nosfx || id <= 0 || id >= NUMSFX || !sfxdata[id].samples)
+    if (!opened || nosfx || id <= 0 || id >= NUMSFX || !sfxdata[id].samples)
 	return 0;
 
     LockAudio ();
@@ -451,12 +475,115 @@ void I_SubmitSound(void)
 
 
 
+//
+// HOST
+// A host that plays the sounds itself reads what plays from here,
+// and pulls the music from I_RenderAudio.
+//
+
+void I_SetHostSound (boolean mix)
+{
+    hostsound = true;
+    hostmix = mix;
+}
+
+//
+// I_HostSoundTic
+// Unless the host mixes, nothing plays the channels here, so a tic
+// moves them on as far as the host's sound has played. A sound ends
+// a tic after its last sample, so that the host, which starts it a
+// little after the tic, has played it all.
+//
+void I_HostSoundTic (void)
+{
+    int			i;
+    mixchannel_t*	c;
+
+    if (!hostsound || hostmix)
+	return;
+
+    for (i=0 ; i<NUM_MIXCHANNELS ; i++)
+    {
+	c = &mixchannels[i];
+	if (!c->handle)
+	    continue;
+	c->pos += c->step * outrate / TICRATE;
+	if (c->pos >= ((Uint64)c->sfx->length << 32) + c->step * outrate / TICRATE)
+	    c->handle = 0;
+    }
+}
+
+const byte* I_SfxSamples (int id, int* length, int* rate)
+{
+    if (!opened || id <= 0 || id >= NUMSFX || !sfxdata[id].samples)
+	return NULL;
+    *length = sfxdata[id].length;
+    *rate = sfxdata[id].rate;
+    return sfxdata[id].samples;
+}
+
+//
+// I_HostSoundParams
+// What s_sound last gave a playing sound, and how many times faster
+// than its own rate it plays; false when it isn't playing.
+//
+boolean I_HostSoundParams (int handle, int* vol, int* sep, float* speed)
+{
+    mixchannel_t*	c;
+
+    c = ChannelForHandle (handle);
+    if (!c)
+	return false;
+    *vol = c->vol;
+    *sep = c->sep;
+    *speed = snd_pitchshift ? pow (2.0, (c->pitch - NORM_PITCH) / 64.0) : 1;
+    return true;
+}
+
+int I_SampleRate (void)
+{
+    return outrate;
+}
+
+boolean I_MusicOn (void)
+{
+    return musicready;
+}
+
+//
+// I_RenderAudio
+// The next frames of the music at I_SampleRate, interleaved stereo, and
+// of the sound effects too if the host mixes. The music's score moves
+// on by as much, whatever the frame rate.
+//
+void I_RenderAudio (float* out, int frames)
+{
+    int		chunk;
+
+    if (!hostsound || !opened)
+    {
+	memset (out, 0, frames * 2 * sizeof(float));
+	return;
+    }
+    while (frames > 0)
+    {
+	chunk = frames < mixbufferframes ? frames : mixbufferframes;
+	Mix (out, chunk, hostmix);
+	out += chunk * 2;
+	frames -= chunk;
+    }
+}
+
+
 void I_ShutdownSound(void)
 {
-    if (!stream)
+    if (!opened)
 	return;
 
     I_ShutdownMusic ();
+    opened = false;
+    if (!stream)
+	return;
     SDL_DestroyAudioStream (stream);
     stream = NULL;
     SDL_QuitSubSystem (SDL_INIT_AUDIO);
@@ -473,6 +600,23 @@ I_InitSound()
     if (nosfx && nomusic)
 	return;
 
+    outrate = snd_samplerate;
+    if (outrate < 11025 || outrate > 192000)
+	outrate = 48000;
+
+    if (hostsound)
+    {
+	dcblockcoef = 1.0f - 2.0f * 3.14159265f * 10.0f / outrate;
+	mixbufferframes = 1024;
+	musicbuffer = malloc (mixbufferframes * 2 * sizeof(short));
+	opened = true;
+	if (!nosfx)
+	    CacheSounds ();
+	I_InitMusic ();
+	fprintf (stderr, "I_InitSound: %d Hz, played by the host\n", outrate);
+	return;
+    }
+
     // Ask for small device buffers; the default can lag noticeably.
     SDL_SetHint (SDL_HINT_AUDIO_DEVICE_SAMPLE_FRAMES, "512");
 
@@ -481,10 +625,6 @@ I_InitSound()
 	fprintf (stderr, "I_InitSound: %s\n", SDL_GetError ());
 	return;
     }
-
-    outrate = snd_samplerate;
-    if (outrate < 11025 || outrate > 192000)
-	outrate = 48000;
 
     spec.format = SDL_AUDIO_F32;
     spec.channels = 2;
@@ -505,6 +645,7 @@ I_InitSound()
 	SDL_QuitSubSystem (SDL_INIT_AUDIO);
 	return;
     }
+    opened = true;
 
     if (!nosfx)
 	CacheSounds ();
@@ -529,7 +670,7 @@ void I_InitMusic(void)
     int		lump;
     const byte*	genmidi;
 
-    if (!stream || nomusic)
+    if (!opened || nomusic)
 	return;
 
     lump = W_CheckNumForName ("GENMIDI");
@@ -568,8 +709,9 @@ void I_SetMusicVolume(int volume)
     // Internal state variable.
     snd_MusicVolume = volume;
 
+    // A host that plays the music on its own turns it down itself.
     LockAudio ();
-    OPLMUS_SetVolume (volume);
+    OPLMUS_SetVolume (hostsound && !hostmix ? 127 : volume);
     UnlockAudio ();
 }
 

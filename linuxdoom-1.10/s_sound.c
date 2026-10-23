@@ -124,6 +124,7 @@ static boolean		mus_paused;
 
 // music currently being played
 static musicinfo_t*	mus_playing=0;
+static boolean		mus_looping;
 
 // following is set
 //  by the defaults code in M_misc:
@@ -685,6 +686,7 @@ S_ChangeMusic
     I_PlaySong(music->handle, looping);
 
     mus_playing = music;
+    mus_looping = looping;
 }
 
 
@@ -878,4 +880,41 @@ S_getChannel
 
 
 
+//
+// For a host that plays the sounds itself (d_host.c).
+//
 
+//
+// S_GetChannel
+// What channel cnum plays and where it comes from; false when free.
+//
+int
+S_GetChannel
+( int		cnum,
+  void**	origin,
+  int*		sfx_id,
+  int*		handle )
+{
+    channel_t*	c;
+
+    if (cnum < 0 || cnum >= numChannels || !channels[cnum].sfxinfo)
+	return false;
+    c = &channels[cnum];
+    *origin = c->origin;
+    *sfx_id = c->sfxinfo - S_sfx;
+    *handle = c->handle;
+    return true;
+}
+
+//
+// S_GetMusic
+// The lump of the music playing, -1 for none.
+//
+int S_GetMusic (int* looping, int* paused)
+{
+    if (!mus_playing)
+	return -1;
+    *looping = mus_looping;
+    *paused = mus_paused;
+    return mus_playing->lumpnum;
+}

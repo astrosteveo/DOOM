@@ -16,6 +16,11 @@ using namespace godot;
 
 static_assert(DoomSim::SKY == DH_SKY, "DoomSim::SKY is d_host.h's DH_SKY");
 
+void DoomSim::set_mix_sound(bool p_mix) {
+	ERR_FAIL_COND_MSG(started, "Choose how the sound plays before start().");
+	DH_MixSound(p_mix);
+}
+
 int DoomSim::start(const PackedStringArray &p_args) {
 	ERR_FAIL_COND_V_MSG(started, ERROR, "The game is already running; only one runs in a process.");
 	started = true;
@@ -187,6 +192,8 @@ Dictionary DoomSim::get_state() const {
 	d["demoplayback"] = s.demoplayback != 0;
 	d["automap"] = s.automap != 0;
 	d["palette"] = s.palette;
+	d["sfxvolume"] = s.sfxvolume;
+	d["musicvolume"] = s.musicvolume;
 	return d;
 }
 
@@ -371,7 +378,123 @@ Ref<Image> DoomSim::get_flat_image(int p_flat) const {
 	return Image::create_from_data(DH_FLATSIZE, DH_FLATSIZE, false, Image::FORMAT_RGBA8, rgba);
 }
 
+static_assert(DoomSim::SOUND_LOCAL == DH_SOUND_LOCAL && DoomSim::SOUND_THING == DH_SOUND_THING
+				&& DoomSim::SOUND_SECTOR == DH_SOUND_SECTOR && DoomSim::SOUND_POINT == DH_SOUND_POINT,
+		"DoomSim's sound origins are d_host.h's");
+
+Dictionary DoomSim::get_sounds() const {
+	Dictionary d;
+	if (!started) {
+		return d;
+	}
+	std::vector<dh_sound_t> sounds(DH_GetSounds(nullptr, 0));
+	int count = DH_GetSounds(sounds.data(), (int)sounds.size());
+
+	PackedInt32Array handles;
+	PackedInt32Array sfx;
+	PackedInt32Array volumes;
+	PackedInt32Array seps;
+	PackedFloat32Array speeds;
+	PackedInt32Array origins;
+	PackedInt32Array ids;
+	PackedFloat32Array coords;
+	handles.resize(count);
+	sfx.resize(count);
+	volumes.resize(count);
+	seps.resize(count);
+	speeds.resize(count);
+	origins.resize(count);
+	ids.resize(count);
+	coords.resize(count * 6);
+	for (int i = 0; i < count; i++) {
+		const dh_sound_t &s = sounds[i];
+		handles[i] = s.handle;
+		sfx[i] = s.sfx;
+		volumes[i] = s.volume;
+		seps[i] = s.sep;
+		speeds[i] = s.speed;
+		origins[i] = s.origin;
+		ids[i] = s.id;
+		const float values[6] = { s.x, s.y, s.z, s.oldx, s.oldy, s.oldz };
+		for (int j = 0; j < 6; j++) {
+			coords[i * 6 + j] = values[j];
+		}
+	}
+	// coords: x, y, z, then x, y, z a tic before, for each sound;
+	// origins: SOUND_LOCAL and so on, with ids the thing's or sector's.
+	d["handles"] = handles;
+	d["sfx"] = sfx;
+	d["volumes"] = volumes;
+	d["seps"] = seps;
+	d["speeds"] = speeds;
+	d["origins"] = origins;
+	d["ids"] = ids;
+	d["coords"] = coords;
+	return d;
+}
+
+String DoomSim::get_sound_name(int p_sfx) const {
+	char name[9];
+	int rate, length;
+	if (!started || !DH_SoundInfo(p_sfx, name, &rate, &length)) {
+		return String();
+	}
+	return String(name);
+}
+
+Ref<AudioStreamWAV> DoomSim::get_sound(int p_sfx) const {
+	char name[9];
+	int rate, length;
+	if (!started || !DH_SoundInfo(p_sfx, name, &rate, &length)) {
+		return Ref<AudioStreamWAV>();
+	}
+	PackedByteArray samples;
+	samples.resize(length);
+	DH_SoundSamples(p_sfx, samples.ptrw());
+	// Doom's samples are unsigned; Godot's 8-bit ones are signed.
+	uint8_t *p = samples.ptrw();
+	for (int i = 0; i < length; i++) {
+		p[i] ^= 0x80;
+	}
+	Ref<AudioStreamWAV> stream;
+	stream.instantiate();
+	stream->set_format(AudioStreamWAV::FORMAT_8_BITS);
+	stream->set_mix_rate(rate);
+	stream->set_stereo(false);
+	stream->set_data(samples);
+	return stream;
+}
+
+Dictionary DoomSim::get_music() const {
+	Dictionary d;
+	dh_music_t m;
+	if (!started || !DH_GetMusic(&m)) {
+		return d;
+	}
+	d["name"] = String(m.name);
+	d["looping"] = m.looping != 0;
+	d["paused"] = m.paused != 0;
+	return d;
+}
+
+int DoomSim::get_sample_rate() const {
+	return started ? DH_SampleRate() : 0;
+}
+
+PackedVector2Array DoomSim::render_audio(int p_frames) {
+	PackedVector2Array frames;
+	ERR_FAIL_COND_V_MSG(!started, frames, "start() the game first.");
+	if (p_frames <= 0) {
+		return frames;
+	}
+	frames.resize(p_frames);
+	static_assert(sizeof(Vector2) == 2 * sizeof(float), "Vector2 is two floats");
+	DH_RenderAudio(reinterpret_cast<float *>(frames.ptrw()), p_frames);
+	return frames;
+}
+
 void DoomSim::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("set_mix_sound", "mix"), &DoomSim::set_mix_sound);
 	ClassDB::bind_method(D_METHOD("start", "args"), &DoomSim::start);
 	ClassDB::bind_method(D_METHOD("tic"), &DoomSim::tic);
 	ClassDB::bind_method(D_METHOD("is_started"), &DoomSim::is_started);
@@ -392,6 +515,12 @@ void DoomSim::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_texture_image", "texture"), &DoomSim::get_texture_image);
 	ClassDB::bind_method(D_METHOD("get_flat_name", "flat"), &DoomSim::get_flat_name);
 	ClassDB::bind_method(D_METHOD("get_flat_image", "flat"), &DoomSim::get_flat_image);
+	ClassDB::bind_method(D_METHOD("get_sounds"), &DoomSim::get_sounds);
+	ClassDB::bind_method(D_METHOD("get_sound_name", "sfx"), &DoomSim::get_sound_name);
+	ClassDB::bind_method(D_METHOD("get_sound", "sfx"), &DoomSim::get_sound);
+	ClassDB::bind_method(D_METHOD("get_music"), &DoomSim::get_music);
+	ClassDB::bind_method(D_METHOD("get_sample_rate"), &DoomSim::get_sample_rate);
+	ClassDB::bind_method(D_METHOD("render_audio", "frames"), &DoomSim::render_audio);
 
 	BIND_ENUM_CONSTANT(RUNNING);
 	BIND_ENUM_CONSTANT(QUIT);
@@ -410,4 +539,8 @@ void DoomSim::_bind_methods() {
 	BIND_ENUM_CONSTANT(CONTROL_USE);
 	BIND_ENUM_CONSTANT(CONTROL_STRAFE);
 	BIND_ENUM_CONSTANT(CONTROL_RUN);
+	BIND_ENUM_CONSTANT(SOUND_LOCAL);
+	BIND_ENUM_CONSTANT(SOUND_THING);
+	BIND_ENUM_CONSTANT(SOUND_SECTOR);
+	BIND_ENUM_CONSTANT(SOUND_POINT);
 }

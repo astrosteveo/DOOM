@@ -100,6 +100,11 @@ void S_UpdateSounds(void* listener);
 void S_SetMusicVolume(int volume);
 void S_SetSfxVolume(int volume);
 
+// For a host that plays the sounds itself (d_host.c): what each of
+// numChannels channels plays, and what music, with its lump.
+int S_GetChannel (int cnum, void** origin, int* sfx_id, int* handle);
+int S_GetMusic (int* looping, int* paused);
+
 
 #endif
 //-----------------------------------------------------------------------------
