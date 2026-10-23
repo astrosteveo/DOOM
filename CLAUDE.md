@@ -45,8 +45,10 @@ fails for a reason unrelated to the change, say so and show the output instead o
   `godot --headless --path godot -s res://tools/run_demo.gd -- -playdemo demo1 -hashlog <file>`, against the SDL3
   build's log.
 - For a change to what Godot shows: `gdh live start --project godot -- -iwad <path> -playdemo demo1`, step, and look;
-  `-shotat` on the SDL3 build renders the same tic to compare.
-- For a visible change: run with `SDL_VIDEO_DRIVER=offscreen`, `-shotat <tic,...> -shotdir <dir>` and, to drive the
+  `-shotat` on the SDL3 build renders the same tic to compare. Add `-classic` to leave out Godot's lights, fog and
+  glow, which the SDL3 build doesn't have.
+- For a visible change: run with `SDL_VIDEO_DRIVER=offscreen`, `-shotat <tic,...> -shotdir <dir>` (make the
+  directory first: shots to a missing one are lost without a word) and, to drive the
   menus, `-inputscript <file>` (`<tic> <down|up|press> <key>` per line), then look at the PNGs.
 
 ## Conventions

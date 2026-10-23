@@ -59,10 +59,44 @@ enclose to 0.03% on E1M1 to E1M9.
 
 The three demos still log the same `-hashlog` through Godot as in the SDL3 build.
 
+## Light
+
+Two layers: Doom's own light, as the SDL3 build draws it, and Godot's lights over it.
+
+- **Doom's light.** `doom_light.gdshaderinc` works out the COLORMAP row Doom would draw each pixel through, with the
+  arithmetic of `R_InitLightTables` and `R_ExecuteSetViewSize`: the sector's light in 16 steps, the player's
+  extralight, and the depth in front of the eye, walls by their scale (scalelight, `160/depth` in 16ths) and floors
+  and ceilings by distance (zlight, in steps of 16 units). Walls along x are a step darker and along y a step
+  brighter. The visor and invulnerability replace all of it with their fixed row (`fixedcolormap` in `dh_state_t`);
+  the sky stays full bright.
+- **A brightness, not a palette lookup.** Row c darkens the palette by (32 − c)/32, measured from the IWAD's
+  COLORMAP, so the shader scales the texture by that rather than indexing COLORMAP, and it will apply to easel's
+  textures as well. It scales sRGB values, as the rows were made: scaling linear colour took dark rooms nearly to
+  black. Invulnerability's row is gray, 255 less the luma. At demo2's tic 1900, walls, floors and the dark room
+  match the SDL3 build's `-shotat` within a few percent.
+- **Godot's lights over it.** Surfaces are lit, with Doom's light as their emission and the Environment's ambient
+  and reflected light off, so with no lamps about they look exactly as in Doom. `thing_lights.gd` puts an
+  OmniLight on each thing that gives light, by type from `DH_GetThings`: lamps, torches, candles and burning
+  barrels cast shadows, and flames flicker between tics; projectiles light their way without shadows and burst
+  brighter once `MF_MISSILE` clears. A light on the camera flashes with extralight. Volumetric fog with no ambient
+  term is lit only by those lights, which gives them halos, and glow takes what they light past white.
+- **`-classic`** (after `--`; the game ignores it) leaves out the lights, fog and glow, to compare with the SDL3
+  build. At demo2's tic 1900 it draws the same pixels as Doom's light alone.
+
+Floors, ceilings and walls move between tics as the camera does. `DH_GetWalls` gives every wall section that can
+show, empty or not, with the sector planes its bottom, top and texture follow, so the list changes only with
+textures. The level keeps two textures of sector heights, this tic's and the tic before's; the shaders place each
+wall and plane vertex between them by the physics interpolation fraction, so walls and planes stay joined, and a
+door or lift rebuilds nothing. On demo1's E1M5 the median tic still takes 0.2 ms of script time.
+
+Not yet: the things are still boxes that jump from tic to tic, and their lights with them; smoothing them needs a
+way to tell a thing from one tic to the next, which can come with sprites or models. Shadows of walls a door or lift
+moves keep the wall where it was until something else in the light's range moves, since the shaders move it.
+
 ## After it
 
 1. ~~Floors and ceilings: polygons rebuilt from the BSP tree, since Doom never stored them. Sky.~~ Done, above.
-2. Sector lighting, then Godot's: lights for lamps and fireballs, fog, glow.
+2. ~~Sector lighting, then Godot's: lights for lamps and fireballs, fog, glow.~~ Done, above.
 3. Input, menus and the status bar, so the game can be played, not only watched.
 4. Sound and music through Godot's audio.
 5. Content: a definitions file mapping Doom's textures, flats and things to easel's PBR materials and GLB
