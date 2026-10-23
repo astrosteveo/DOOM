@@ -1,3 +1,5 @@
 .godot/
 # Built by CMake with -DDOOM_GODOT=ON.
 bin/
+# gdh's screenshots and recordings.
+captures/
