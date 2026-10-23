@@ -8,6 +8,7 @@
 #include <godot_cpp/variant/packed_float32_array.hpp>
 #include <godot_cpp/variant/packed_int32_array.hpp>
 #include <godot_cpp/variant/packed_vector2_array.hpp>
+#include <godot_cpp/variant/rect2i.hpp>
 
 #include "d_host.h"
 
@@ -122,6 +123,43 @@ String DoomSim::get_error() const {
 	return String::utf8(DH_ErrorMessage());
 }
 
+void DoomSim::set_screen_size(const Vector2i &p_size) {
+	DH_SetScreenSize(p_size.x, p_size.y);
+}
+
+int DoomSim::draw(float p_fraction) {
+	ERR_FAIL_COND_V_MSG(!started, ERROR, "start() the game first.");
+	return DH_Draw(p_fraction);
+}
+
+Dictionary DoomSim::get_screen() const {
+	Dictionary d;
+	if (!started) {
+		return d;
+	}
+	dh_screen_t s;
+	DH_GetScreen(&s);
+	PackedByteArray rgba;
+	rgba.resize((int64_t)s.width * s.height * 4);
+	DH_ScreenRGBA(rgba.ptrw());
+	// image: the screen, transparent where the 3D view shows; view: where
+	// that is, in its pixels, empty when the screen covers it.
+	d["image"] = Image::create_from_data(s.width, s.height, false, Image::FORMAT_RGBA8, rgba);
+	d["view"] = Rect2i(s.viewx, s.viewy, s.viewwidth, s.viewheight);
+	d["projection"] = s.projection;
+	return d;
+}
+
+Color DoomSim::get_palette_tint(int p_palette) const {
+	if (!started) {
+		return Color(0, 0, 0, 0);
+	}
+	float rgb[3];
+	float amount;
+	DH_PaletteTint(p_palette, rgb, &amount);
+	return Color(rgb[0], rgb[1], rgb[2], amount);
+}
+
 Dictionary DoomSim::get_state() const {
 	dh_state_t s;
 	DH_GetState(&s);
@@ -148,6 +186,7 @@ Dictionary DoomSim::get_state() const {
 	d["paused"] = s.paused != 0;
 	d["demoplayback"] = s.demoplayback != 0;
 	d["automap"] = s.automap != 0;
+	d["palette"] = s.palette;
 	return d;
 }
 
@@ -340,6 +379,10 @@ void DoomSim::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("post_event", "type", "data1", "data2", "data3"), &DoomSim::post_event, DEFVAL(0), DEFVAL(0));
 	ClassDB::bind_method(D_METHOD("get_control_key", "control"), &DoomSim::get_control_key);
 	ClassDB::bind_static_method("DoomSim", D_METHOD("doom_key", "key"), &DoomSim::doom_key);
+	ClassDB::bind_method(D_METHOD("set_screen_size", "size"), &DoomSim::set_screen_size);
+	ClassDB::bind_method(D_METHOD("draw", "fraction"), &DoomSim::draw);
+	ClassDB::bind_method(D_METHOD("get_screen"), &DoomSim::get_screen);
+	ClassDB::bind_method(D_METHOD("get_palette_tint", "palette"), &DoomSim::get_palette_tint);
 	ClassDB::bind_method(D_METHOD("get_state"), &DoomSim::get_state);
 	ClassDB::bind_method(D_METHOD("get_walls"), &DoomSim::get_walls);
 	ClassDB::bind_method(D_METHOD("get_things"), &DoomSim::get_things);

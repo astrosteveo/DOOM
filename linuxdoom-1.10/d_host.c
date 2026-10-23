@@ -25,13 +25,19 @@
 #include "doomstat.h"
 #include "d_main.h"
 #include "g_game.h"
+#include "hu_stuff.h"
+#include "i_video.h"
 #include "i_system.h"
 #include "m_argv.h"
+#include "m_menu.h"
 #include "p_local.h"
 #include "p_tick.h"
 #include "r_data.h"
+#include "r_main.h"
 #include "r_sky.h"
 #include "r_state.h"
+#include "st_stuff.h"
+#include "v_video.h"
 #include "w_wad.h"
 #include "z_zone.h"
 
@@ -80,6 +86,10 @@ int DH_Start (int argc, char** argv)
       default:
 	return ended = DH_ERROR;
     }
+
+    // No window: the host shows the frame, and draws the 3D view.
+    I_SetHostScreen (640, 480);
+    hostview = true;
 
     D_DoomSetup ();
     D_StartLoop ();
@@ -183,6 +193,7 @@ void DH_GetState (dh_state_t* state)
 	state->angle = Radians (mo->angle);
 	state->extralight = player->extralight;
 	state->fixedcolormap = player->fixedcolormap;
+	state->palette = ST_Palette (player);
 
 	// As R_SetupFrame places the view.
 	if (Moved () && mo->interp)
@@ -210,6 +221,7 @@ void DH_GetState (dh_state_t* state)
 	state->oldx = state->oldy = state->oldz = state->oldangle = 0;
 	state->turn = 0;
 	state->extralight = state->fixedcolormap = 0;
+	state->palette = 0;
     }
     state->sky = skytexture;
     state->menu = menuactive;
@@ -269,6 +281,206 @@ int DH_PostEvent (const dh_event_t* event)
     D_PostEvent (&ev);
     D_ProcessEvents ();
     return DH_RUNNING;
+}
+
+
+//
+// The screen
+// D_Display draws it as for the SDL3 build, but for the 3D view, which
+// it leaves filled with one color under the player's weapon. To tell
+// what else was drawn over the view, the status messages, the pause
+// sign and the menu, DH_Draw draws all of that again over a second
+// color: where the two frames differ, the view shows through.
+//
+static byte*	screencopy;
+static byte*	shown;		// 0 where the view shows through
+static int	screensize;
+static boolean	viewshown;
+
+
+//
+// DH_SetScreenSize
+//
+void DH_SetScreenSize (int width, int height)
+{
+    I_SetHostScreen (width, height);
+}
+
+
+//
+// DH_Draw
+//
+int DH_Draw (float fraction)
+{
+    int		n;
+    int		i;
+    int		x;
+    int		y;
+
+    if (ended)
+	return ended;
+
+    switch (setjmp (hostreturn))
+    {
+      case 0:
+	break;
+      case 1:
+	return ended = DH_QUIT;
+      default:
+	return ended = DH_ERROR;
+    }
+
+    if (fraction < 0)
+	fraction = 0;
+    if (fraction > 1)
+	fraction = 1;
+    hostfrac = (fixed_t)(fraction * FRACUNIT);
+    hostviewfill = 0;
+    D_Display ();
+
+    n = SCREENWIDTH*SCREENHEIGHT;
+    if (n != screensize)
+    {
+	free (screencopy);
+	free (shown);
+	screencopy = malloc (n);
+	shown = malloc (n);
+	if (!screencopy || !shown)
+	    I_Error ("DH_Draw: no memory for a %dx%d screen",
+		     SCREENWIDTH, SCREENHEIGHT);
+	screensize = n;
+    }
+    memset (shown, 1, n);
+
+    // As D_Display decides whether to draw the view.
+    viewshown = gamestate == GS_LEVEL && !automapactive && gametic;
+    if (!viewshown || nodrawers)
+	return DH_RUNNING;
+
+    memcpy (screencopy, screens[0], n);
+    renderfrac = Moved () ? hostfrac : FRACUNIT;
+    R_RenderPlayerSprites (&players[displayplayer], 255, false);
+    renderfrac = FRACUNIT;
+    HU_Drawer ();
+    D_DrawPause ();
+    M_Drawer ();
+    for (y=viewwindowy ; y<viewwindowy+viewheight ; y++)
+    {
+	for (x=viewwindowx ; x<viewwindowx+scaledviewwidth ; x++)
+	{
+	    i = y*SCREENWIDTH + x;
+	    shown[i] = screens[0][i] == screencopy[i];
+	}
+    }
+    memcpy (screens[0], screencopy, n);
+    return DH_RUNNING;
+}
+
+
+//
+// DH_GetScreen
+//
+void DH_GetScreen (dh_screen_t* screen)
+{
+    screen->width = SCREENWIDTH;
+    screen->height = SCREENHEIGHT;
+    screen->projection = projectionwidth / 2.0f;
+    if (viewshown)
+    {
+	screen->viewx = viewwindowx;
+	screen->viewy = viewwindowy;
+	screen->viewwidth = scaledviewwidth;
+	screen->viewheight = viewheight;
+    }
+    else
+	screen->viewx = screen->viewy
+	    = screen->viewwidth = screen->viewheight = 0;
+}
+
+
+//
+// DH_ScreenRGBA
+//
+void DH_ScreenRGBA (unsigned char* rgba)
+{
+    byte	palette[768];
+    byte*	c;
+    int		i;
+
+    memcpy (palette, W_CacheLumpName ("PLAYPAL", PU_CACHE), sizeof(palette));
+    for (i=0 ; i<SCREENWIDTH*SCREENHEIGHT ; i++)
+    {
+	c = palette + screens[0][i]*3;
+	rgba[i*4] = c[0];
+	rgba[i*4+1] = c[1];
+	rgba[i*4+2] = c[2];
+	rgba[i*4+3] = !shown || i >= screensize || shown[i] ? 255 : 0;
+    }
+}
+
+
+//
+// DH_PaletteTint
+// Each PLAYPAL palette is the first blended toward one color: fits
+// that color and how far, by least squares over the 256 entries.
+//
+void DH_PaletteTint (int palette, float rgb[3], float* amount)
+{
+    byte*	playpal;
+    byte*	base;
+    byte*	tinted;
+    int		i;
+    int		c;
+    double	slope;
+    double	mx;
+    double	my;
+    double	sxx;
+    double	sxy;
+    double	keep;
+    double	intercept[3];
+
+    rgb[0] = rgb[1] = rgb[2] = 0;
+    *amount = 0;
+    if (palette <= 0 || palette >= 14)
+	return;
+
+    playpal = W_CacheLumpName ("PLAYPAL", PU_CACHE);
+    base = playpal;
+    tinted = playpal + palette*768;
+
+    keep = 0;
+    for (c=0 ; c<3 ; c++)
+    {
+	mx = my = 0;
+	for (i=0 ; i<256 ; i++)
+	{
+	    mx += base[i*3+c];
+	    my += tinted[i*3+c];
+	}
+	mx /= 256;
+	my /= 256;
+	sxx = sxy = 0;
+	for (i=0 ; i<256 ; i++)
+	{
+	    sxx += (base[i*3+c] - mx) * (base[i*3+c] - mx);
+	    sxy += (base[i*3+c] - mx) * (tinted[i*3+c] - my);
+	}
+	slope = sxx ? sxy / sxx : 1;
+	keep += slope / 3;
+	intercept[c] = my - slope*mx;
+    }
+
+    if (keep >= 1)
+	return;
+    *amount = 1 - keep;
+    for (c=0 ; c<3 ; c++)
+    {
+	rgb[c] = intercept[c] / *amount / 255;
+	if (rgb[c] < 0)
+	    rgb[c] = 0;
+	if (rgb[c] > 1)
+	    rgb[c] = 1;
+    }
 }
 
 

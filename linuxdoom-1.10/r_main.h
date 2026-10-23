@@ -165,6 +165,10 @@ R_AddPointToBox
 // Called by G_Drawer.
 void R_RenderPlayerView (player_t *player);
 
+// Only the player's weapon, over the view filled with one color, for a
+// host that draws the rest; seelines marks what it sees on the automap.
+void R_RenderPlayerSprites (player_t *player, int color, boolean seelines);
+
 // Called by startup code.
 void R_Init (void);
 

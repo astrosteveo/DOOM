@@ -85,6 +85,11 @@ typedef struct
     int		paused;
     int		demoplayback;
     int		automap;
+    // The PLAYPAL palette Doom shows the screen in, for a flash: 0 for
+    // none, 1 to 8 red for damage and berserk, 9 to 12 gold for a
+    // pickup, 13 green for the radiation suit. DH_PaletteTint says
+    // what each looks like.
+    int		palette;
 } dh_state_t;
 
 void		DH_GetState (dh_state_t* state);
@@ -164,6 +169,44 @@ enum
 // The key the game's config binds a control to, for a host that has
 // bindings of its own to post as that key.
 int		DH_ControlKey (int control);
+
+// The screen: what Doom draws in 2D, the status bar, messages, menus,
+// the automap, the intermission and the rest, and the player's weapon,
+// for a host to show over the 3D view it draws itself. The view is
+// left transparent, where Doom would draw it.
+
+// The host's window, in pixels. The screen is sized for it as the SDL3
+// build sizes its framebuffer for its window, as wide as the window
+// and twice the original 200 rows, or -scale times. 640x480 until a
+// host says otherwise.
+void		DH_SetScreenSize (int width, int height);
+
+// Draws the screen as it is now, fraction (0 to 1) of the way from the
+// last tic to the next, as the weapon bobs. Returns as DH_Tic does.
+int		DH_Draw (float fraction);
+
+typedef struct
+{
+    int		width, height;	// pixels
+    // Where the 3D view shows, in pixels from the top left; all 0 when
+    // the screen covers it, as for the automap or the intermission.
+    int		viewx, viewy;
+    int		viewwidth, viewheight;
+    // How many pixels from the view's middle Doom sees 45 degrees to
+    // the side: its view is 90 degrees across twice this, and a pixel
+    // up is as far as a pixel across.
+    float	projection;
+} dh_screen_t;
+
+void		DH_GetScreen (dh_screen_t* screen);
+
+// The screen as width*height RGBA pixels, row by row from the top, in
+// the game's first palette, with alpha 0 where the 3D view shows.
+void		DH_ScreenRGBA (unsigned char* rgba);
+
+// What a palette flash looks like: the color, 0 to 1, that the screen
+// is blended toward, and how far, 0 to 1.
+void		DH_PaletteTint (int palette, float rgb[3], float* amount);
 
 // What a wall's texture or a sector's flat is where Doom draws the sky
 // in its place: DH_GetState's sky, drawn by view angle, not mapped

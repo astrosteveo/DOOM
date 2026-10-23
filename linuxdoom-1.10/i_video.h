@@ -40,6 +40,9 @@ void I_InitGraphics (void);
 // see V_SetResolution.
 boolean I_CheckResize (void);
 
+// For a host that shows the frame in its own window: see i_video.c.
+void I_SetHostScreen (int width, int height);
+
 
 void I_ShutdownGraphics(void);
 

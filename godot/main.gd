@@ -2,10 +2,13 @@ extends Node3D
 ## Runs the 1997 game in DoomSim, a tic per physics tick (35 a second),
 ## and shows it: the level built whenever one loads, and every frame the
 ## things and the camera at the player's eye placed between the last two
-## tics as Doom draws them, the view turned at once by the mouse. The
-## player's keys and mouse go to the game through Input (DoomInput). Floors,
-## ceilings and walls move between tics in the level's shaders, which
-## read how far between tics a frame is from tic_fraction.
+## tics as Doom draws them, the view turned at once by the mouse. Over it
+## goes Doom's own 2D screen (DoomScreen): status bar, menus, automap,
+## intermission and weapon, with the 3D view seen through where Doom
+## draws it, and nothing else. The player's keys and mouse go to the game
+## through Input (DoomInput). Floors, ceilings and walls move between
+## tics in the level's shaders, which read how far between tics a frame
+## is from tic_fraction.
 ##
 ## Doom's command line goes after "--": godot --path godot -- -warp 1 1
 ## With none, the game runs its title loop and plays its demos. -classic,
@@ -14,6 +17,7 @@ extends Node3D
 
 @onready var sim: DoomSim = %Sim
 @onready var input: DoomInput = %Input
+@onready var screen: DoomScreen = %Screen
 @onready var level: DoomLevel = %Level
 @onready var camera: Camera3D = %Camera
 @onready var muzzle_flash: OmniLight3D = %MuzzleFlash
@@ -34,7 +38,8 @@ func _ready() -> void:
 		environment.glow_enabled = false
 		environment.volumetric_fog_enabled = false
 	input.ended.connect(_check)
-	_check(sim.start(args))
+	if _check(sim.start(args)):
+		screen.start()
 
 
 func _process(_delta: float) -> void:
@@ -46,7 +51,11 @@ func _process(_delta: float) -> void:
 		return
 	input.update()
 	var state := sim.get_state()
-	if state["gamestate"] != 0:
+	if not _check(screen.draw(fraction, state["palette"])):
+		return
+	# The 3D view shows only where the screen leaves room for it.
+	level.visible = screen.view.has_area()
+	if state["gamestate"] != 0 or not level.visible:
 		return
 	level.place_things(fraction)
 	_place_camera(state, fraction)
@@ -83,6 +92,19 @@ func _place_camera(state: Dictionary, fraction: float) -> void:
 			lerpf(state["oldx"], state["x"], fraction),
 			lerpf(state["oldy"], state["y"], fraction),
 			lerpf(state["oldz"], state["z"], fraction)))
+
+	# Doom's view window, as a frustum through the whole window: 90
+	# degrees across twice the projection, looking straight ahead at the
+	# view window's middle. Pixels are square here, where Doom stretches
+	# its rows 1.2 times, so the 3D view shows a little more above and
+	# below than Doom's.
+	var window := Vector2(get_window().size)
+	var width := camera.near * screen.size.x / screen.projection
+	var middle := Vector2(screen.view.get_center()) / Vector2(screen.size)
+	camera.size = width
+	camera.frustum_offset = Vector2(
+		width * (0.5 - middle.x),
+		width * window.y / window.x * (middle.y - 0.5))
 
 
 ## False once the game has ended, after quitting Godot the same way.

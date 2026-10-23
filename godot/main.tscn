@@ -4,6 +4,8 @@
 [ext_resource type="Script" path="res://level/level.gd" id="2"]
 [ext_resource type="Script" path="res://level/thing_lights.gd" id="3"]
 [ext_resource type="Script" path="res://input/doom_input.gd" id="4"]
+[ext_resource type="Script" path="res://screen/doom_screen.gd" id="5"]
+[ext_resource type="Shader" path="res://screen/screen.gdshader" id="6"]
 
 [sub_resource type="StandardMaterial3D" id="thing_material"]
 shading_mode = 0
@@ -16,6 +18,9 @@ material = SubResource("thing_material")
 transform_format = 1
 use_colors = true
 mesh = SubResource("thing_box")
+
+[sub_resource type="ShaderMaterial" id="screen_material"]
+shader = ExtResource("6")
 
 [sub_resource type="Environment" id="environment"]
 background_mode = 1
@@ -64,7 +69,9 @@ script = ExtResource("3")
 [node name="Camera" type="Camera3D" parent="."]
 unique_name_in_owner = true
 physics_interpolation_mode = 2
-fov = 73.74
+keep_aspect = 0
+projection = 2
+size = 0.1333
 near = 0.05
 
 [node name="MuzzleFlash" type="OmniLight3D" parent="Camera"]
@@ -77,3 +84,29 @@ omni_range = 8.0
 [node name="Environment" type="WorldEnvironment" parent="."]
 unique_name_in_owner = true
 environment = SubResource("environment")
+
+[node name="Screen" type="CanvasLayer" parent="." node_paths=PackedStringArray("sim")]
+unique_name_in_owner = true
+script = ExtResource("5")
+sim = NodePath("../Sim")
+
+[node name="Picture" type="TextureRect" parent="Screen"]
+unique_name_in_owner = true
+material = SubResource("screen_material")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+
+[node name="Flash" type="ColorRect" parent="Screen"]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0)

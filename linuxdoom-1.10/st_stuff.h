@@ -46,6 +46,10 @@ void ST_Ticker (void);
 // Called by main loop.
 void ST_Drawer (boolean fullscreen, boolean refresh);
 
+// The PLAYPAL palette the player sees through, for a flash.
+struct player_s;
+int ST_Palette (struct player_s* player);
+
 // Called when the console player is spawned on each level.
 void ST_Start (void);
 

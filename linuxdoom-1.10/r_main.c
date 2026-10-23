@@ -30,6 +30,7 @@ static const char rcsid[] = "$Id: r_main.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
 
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 
 
 #include "doomdef.h"
@@ -42,6 +43,7 @@ static const char rcsid[] = "$Id: r_main.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
 
 #include "r_local.h"
 #include "r_sky.h"
+#include "v_video.h"
 
 
 
@@ -1003,4 +1005,34 @@ void R_RenderPlayerView (player_t* player)
 
     // Check for new console commands.
     NetUpdate ();				
+}
+
+
+//
+// R_RenderPlayerSprites
+// For a host that draws the rest of the view itself (d_host.c): the
+// view window filled with color, and the player's weapon over it. With
+// seelines, it first goes through the level as R_RenderPlayerView
+// does, which marks the lines the player sees on the automap.
+//
+void R_RenderPlayerSprites (player_t* player, int color, boolean seelines)
+{
+    int		y;
+
+    R_SetupFrame (player);
+
+    if (seelines)
+    {
+	R_ClearClipSegs ();
+	R_ClearDrawSegs ();
+	R_ClearPlanes ();
+	R_ClearSprites ();
+	R_RenderBSPNode (numnodes-1);
+    }
+
+    for (y=0 ; y<viewheight ; y++)
+	memset (screens[0] + (viewwindowy+y)*SCREENWIDTH + viewwindowx,
+		color, scaledviewwidth);
+
+    R_DrawPlayerSprites ();
 }

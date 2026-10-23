@@ -1009,20 +1009,24 @@ void ST_Ticker (void)
 
 static int st_palette = 0;
 
-void ST_doPaletteStuff(void)
+//
+// ST_Palette
+// The palette the player sees the world through: red for damage and
+// berserk, gold for a pickup, green for the radiation suit; 0 for
+// none of them.
+//
+int ST_Palette (player_t* player)
 {
-
     int		palette;
-    byte*	pal;
     int		cnt;
     int		bzc;
 
-    cnt = plyr->damagecount;
+    cnt = player->damagecount;
 
-    if (plyr->powers[pw_strength])
+    if (player->powers[pw_strength])
     {
 	// slowly fade the berzerk out
-  	bzc = 12 - (plyr->powers[pw_strength]>>6);
+  	bzc = 12 - (player->powers[pw_strength]>>6);
 
 	if (bzc > cnt)
 	    cnt = bzc;
@@ -1038,9 +1042,9 @@ void ST_doPaletteStuff(void)
 	palette += STARTREDPALS;
     }
 
-    else if (plyr->bonuscount)
+    else if (player->bonuscount)
     {
-	palette = (plyr->bonuscount+7)>>3;
+	palette = (player->bonuscount+7)>>3;
 
 	if (palette >= NUMBONUSPALS)
 	    palette = NUMBONUSPALS-1;
@@ -1048,11 +1052,22 @@ void ST_doPaletteStuff(void)
 	palette += STARTBONUSPALS;
     }
 
-    else if ( plyr->powers[pw_ironfeet] > 4*32
-	      || plyr->powers[pw_ironfeet]&8)
+    else if ( player->powers[pw_ironfeet] > 4*32
+	      || player->powers[pw_ironfeet]&8)
 	palette = RADIATIONPAL;
     else
 	palette = 0;
+
+    return palette;
+}
+
+void ST_doPaletteStuff(void)
+{
+
+    int		palette;
+    byte*	pal;
+
+    palette = ST_Palette (plyr);
 
     if (palette != st_palette)
     {

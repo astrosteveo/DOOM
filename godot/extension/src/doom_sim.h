@@ -2,7 +2,8 @@
 //
 // It hands Godot the game's state, walls, sectors, things, textures and
 // flats as Doom has them, in map units; the scripts turn them into
-// Godot's space.
+// Godot's space. Doom draws its own 2D screen, which Godot shows over
+// the 3D view.
 // It reads the game and never writes it; the player's keys and mouse
 // go in as Doom's own input events, so demos play as they do in the
 // SDL3 build.
@@ -13,9 +14,11 @@
 #include <godot_cpp/classes/global_constants.hpp>
 #include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/node.hpp>
+#include <godot_cpp/variant/color.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
 #include <godot_cpp/variant/string.hpp>
+#include <godot_cpp/variant/vector2i.hpp>
 
 #include <string>
 #include <vector>
@@ -65,6 +68,11 @@ public:
 	int post_event(EventType p_type, int p_data1, int p_data2, int p_data3);
 	int get_control_key(Control p_control) const;
 	static int doom_key(Key p_key);
+
+	void set_screen_size(const Vector2i &p_size);
+	int draw(float p_fraction);
+	Dictionary get_screen() const;
+	Color get_palette_tint(int p_palette) const;
 
 	Dictionary get_state() const;
 	Dictionary get_walls() const;

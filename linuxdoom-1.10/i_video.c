@@ -91,6 +91,11 @@ static int		numshottics;
 static int		nextshot;
 static char*		shotdir;
 
+// A host that shows the frame itself (d_host.c) has no window: the
+// framebuffer is sized for the one it shows the game in.
+static int		hostwidth;
+static int		hostheight;
+
 static boolean		mousegrabbed;
 static float		mouseaccumx;
 static float		mouseaccumy;
@@ -635,6 +640,9 @@ void I_FinishUpdate (void)
     Uint32*	dest;
     SDL_FRect	destrect;
 
+    if (!window)
+	return;			// a host shows the frame
+
     // draws little dots on the bottom of the screen
     if (devparm)
     {
@@ -731,18 +739,28 @@ static void ChooseResolution (void)
     double	pixelaspect;
     double	aspect;
 
-    SDL_GetWindowSizeInPixels (window, &w, &h);
+    if (hostwidth)
+    {
+	w = hostwidth;
+	h = hostheight;
+    }
+    else
+	SDL_GetWindowSizeInPixels (window, &w, &h);
     if (w < 1 || h < 1)
 	return;
 
     pixelaspect = aspect_ratio_correct ? 1.2 : 1.0;
 
-    // Enough rows that the picture is only ever scaled down.
+    // Enough rows that the picture is only ever scaled down. A host
+    // copies the frame out every frame, so it gets twice the original
+    // rows unless -scale says otherwise, and its whole window.
     scale = scaleoverride ? scaleoverride : render_scale;
-    if (scale <= 0)
+    if (hostwidth)
+	scale = scaleoverride ? scaleoverride : 2;
+    else if (scale <= 0)
 	scale = (int)ceil (h / (ORIGHEIGHT * pixelaspect));
 
-    if (widescreen)
+    if (widescreen || hostwidth)
 	aspect = (double)w / h * pixelaspect;
     else
 	aspect = (double)ORIGWIDTH / ORIGHEIGHT;
@@ -766,6 +784,21 @@ static void CreateScreenTexture (void)
 }
 
 //
+// I_SetHostScreen
+// For a host that shows the frame itself: no window, and a framebuffer
+// for a window of width by height pixels, to take effect at the next
+// I_CheckResize, or at once if graphics aren't up yet.
+//
+void I_SetHostScreen (int width, int height)
+{
+    if (width < 1 || height < 1)
+	return;
+    hostwidth = width;
+    hostheight = height;
+    resizepending = true;
+}
+
+//
 // I_CheckResize
 // Called between frames. If the window changed size, picks a new
 // framebuffer size and returns true if it differs, after which the
@@ -786,7 +819,8 @@ boolean I_CheckResize (void)
     if (SCREENWIDTH == oldw && SCREENHEIGHT == oldh)
 	return false;
 
-    CreateScreenTexture ();
+    if (!hostwidth)
+	CreateScreenTexture ();
     printf ("I_CheckResize: %dx%d framebuffer\n", SCREENWIDTH, SCREENHEIGHT);
     return true;
 }
@@ -869,6 +903,15 @@ void I_InitGraphics(void)
 	p = M_CheckParm ("-inputscript");
 	if (p && p < myargc-1)
 	    LoadInputScript (myargv[p+1]);
+    }
+
+    if (hostwidth)
+    {
+	ChooseResolution ();
+	printf ("I_InitGraphics: no window, %dx%d framebuffer for a "
+		"%dx%d host\n", SCREENWIDTH, SCREENHEIGHT,
+		hostwidth, hostheight);
+	return;
     }
 
     if (!SDL_InitSubSystem (SDL_INIT_VIDEO))

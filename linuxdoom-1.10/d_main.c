@@ -192,6 +192,32 @@ void D_ProcessEvents (void)
 
 // wipegamestate can be set to -1 to force a wipe on the next draw
 gamestate_t     wipegamestate = GS_DEMOSCREEN;
+
+// A host that draws the 3D view itself (d_host.c) sets hostview:
+// D_Display then leaves the view filled with hostviewfill but for the
+// player's weapon, drawn hostfrac of the way between tics, and never
+// wipes, which would hold up the host's frame.
+boolean		hostview;
+int		hostviewfill;
+fixed_t		hostfrac;
+
+//
+// D_DrawPause
+//
+void D_DrawPause (void)
+{
+    int		y;
+
+    if (!paused)
+	return;
+    if (automapactive)
+	y = 4;
+    else
+	y = viewwindowy/screenscale+4;
+    V_DrawPatchDirect((ORIGWIDTH-68)/2,
+		      y,0,W_CacheLumpName ("M_PAUSE", PU_CACHE));
+}
+
 extern  boolean setsizeneeded;
 extern  int             showMessages;
 void R_ExecuteSetViewSize (void);
@@ -207,7 +233,6 @@ void D_Display (void)
     int				nowtime;
     int				tics;
     int				wipestart;
-    int				y;
     boolean			done;
     boolean			wipe;
     boolean			redrawsbar;
@@ -237,7 +262,7 @@ void D_Display (void)
     }
 
     // save the current screen if about to wipe
-    if (gamestate != wipegamestate)
+    if (gamestate != wipegamestate && !hostview)
     {
 	wipe = true;
 	wipe_StartScreen(0, 0, SCREENWIDTH, SCREENHEIGHT);
@@ -284,11 +309,19 @@ void D_Display (void)
     if (gamestate == GS_LEVEL && !automapactive && gametic)
     {
 	// Between tics, if the world moved in the last one.
-	if (uncapped_framerate && !singletics && lastsimtic == gametic-1)
+	if (lastsimtic != gametic-1)
+	    renderfrac = FRACUNIT;
+	else if (hostview)
+	    renderfrac = hostfrac;
+	else if (uncapped_framerate && !singletics)
 	    renderfrac = I_GetTicFrac ();
 	else
 	    renderfrac = FRACUNIT;
-	R_RenderPlayerView (&players[displayplayer]);
+	if (hostview)
+	    R_RenderPlayerSprites (&players[displayplayer], hostviewfill,
+				   true);
+	else
+	    R_RenderPlayerView (&players[displayplayer]);
 	renderfrac = FRACUNIT;
     }
 
@@ -325,20 +358,14 @@ void D_Display (void)
     oldgamestate = wipegamestate = gamestate;
     
     // draw pause pic
-    if (paused)
-    {
-	if (automapactive)
-	    y = 4;
-	else
-	    y = viewwindowy/screenscale+4;
-	V_DrawPatchDirect((ORIGWIDTH-68)/2,
-			  y,0,W_CacheLumpName ("M_PAUSE", PU_CACHE));
-    }
+    D_DrawPause ();
 
 
     // menus go directly to the screen
     M_Drawer ();          // menu is drawn even on top of everything
-    NetUpdate ();         // send out any new accumulation
+    // A host makes its tics itself: NetUpdate would make more.
+    if (!hostview)
+	NetUpdate ();         // send out any new accumulation
 
 
     // normal update

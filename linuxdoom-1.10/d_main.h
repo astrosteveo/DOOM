@@ -26,6 +26,7 @@
 #define __D_MAIN__
 
 #include "d_event.h"
+#include "m_fixed.h"
 
 #ifdef __GNUG__
 #pragma interface
@@ -53,6 +54,14 @@ void D_DoomMain (void);
 void D_DoomSetup (void);
 void D_StartLoop (void);
 void D_RunTic (void);
+
+// Draws a frame, as the loop does after running its tics. A host that
+// draws the 3D view itself sets hostview first: see d_main.c.
+void D_Display (void);
+void D_DrawPause (void);
+extern boolean	hostview;
+extern int	hostviewfill;
+extern fixed_t	hostfrac;
 
 // Called by IO functions when input is detected.
 void D_PostEvent (event_t* ev);
