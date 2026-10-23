@@ -82,6 +82,11 @@ enum
 // One side of a wall: a quad from (x1,y1) to (x2,y2), between bottom
 // and top, seen from the right of that direction, as Doom does.
 // u and v are texture coordinates in texels.
+//
+// bottom and top are the heights of two sector planes, numbered as
+// DH_Plane numbers them, and the texture moves up and down with a
+// third, pegplane: v1 less pegplane's height, plus top, stays the same
+// as they move. Doom draws nothing where top is not above bottom.
 typedef struct
 {
     float	x1, y1, x2, y2;
@@ -89,10 +94,17 @@ typedef struct
     float	u1, u2, v1, v2;
     int		texture;	// as drawn: animation applied, or DH_SKY
     int		sector;		// the one it faces, for its light
+    int		bottomplane, topplane, pegplane;
 } dh_wall_t;
 
+// A sector's floor is plane sector*2, and its ceiling sector*2+1.
+#define DH_Plane(sector, ceiling)	((sector)*2 + ((ceiling) ? 1 : 0))
+
 // Fills walls with up to max of the level's walls, and returns how
-// many there are. Pass NULL and 0 to count them.
+// many there are. Pass NULL and 0 to count them. The same walls come
+// back in the same order all level, with empty ones (top at or below
+// bottom) among them, until a texture changes; so a host can move
+// walls between tics by their planes alone.
 int		DH_GetWalls (dh_wall_t* walls, int max);
 
 typedef struct

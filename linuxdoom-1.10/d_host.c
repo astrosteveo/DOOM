@@ -165,21 +165,36 @@ void DH_GetState (dh_state_t* state)
 
 
 //
+// PlaneHeight
+//
+static fixed_t PlaneHeight (int plane)
+{
+    sector_t*	sec = &sectors[plane/2];
+
+    return plane & 1 ? sec->ceilingheight : sec->floorheight;
+}
+
+
+//
 // AddWall
-// One section of a side, between bottom and top. texturetop is the
-// height the texture's top row sits at, from Doom's pegging rules.
+// One section of a side, between the bottomplane and topplane, which
+// may leave it empty. Its texture's top row is texturetop above
+// pegplane, from Doom's pegging rules.
 //
 static int AddWall (dh_wall_t* walls, int max, int count,
 		    line_t* line, int sidenum, int texture,
-		    fixed_t bottom, fixed_t top, fixed_t texturetop)
+		    int bottomplane, int topplane,
+		    int pegplane, fixed_t texturetop)
 {
     side_t*	side;
     vertex_t*	a;
     vertex_t*	b;
     float	length;
+    fixed_t	bottom;
+    fixed_t	top;
     dh_wall_t*	w;
 
-    if (texture == 0 || top <= bottom)
+    if (texture == 0)
 	return count;
     if (count >= max || !walls)
 	return count+1;
@@ -191,6 +206,9 @@ static int AddWall (dh_wall_t* walls, int max, int count,
     a = sidenum ? line->v2 : line->v1;
     b = sidenum ? line->v1 : line->v2;
     length = hypotf (Units (b->x - a->x), Units (b->y - a->y));
+    bottom = PlaneHeight (bottomplane);
+    top = PlaneHeight (topplane);
+    texturetop += PlaneHeight (pegplane);
 
     w = &walls[count];
     w->x1 = Units (a->x);
@@ -205,13 +223,17 @@ static int AddWall (dh_wall_t* walls, int max, int count,
     w->v2 = Units (texturetop - bottom + side->rowoffset);
     w->texture = texture;
     w->sector = side->sector - sectors;
+    w->bottomplane = bottomplane;
+    w->topplane = topplane;
+    w->pegplane = pegplane;
     return count+1;
 }
 
 
 //
 // DH_GetWalls
-// The rules are R_StoreWallRange's, for each side of each line.
+// The rules are R_StoreWallRange's, for each side of each line, with
+// each section kept whether or not the heights leave it empty now.
 // Masked middle textures on two-sided lines aren't included yet.
 // Where the ceiling steps down between two sky sectors, Doom draws
 // no upper wall and the sky shows above the lower ceiling; that wall
@@ -224,9 +246,8 @@ int DH_GetWalls (dh_wall_t* walls, int max)
     int		count;
     line_t*	line;
     side_t*	side;
-    sector_t*	front;
-    sector_t*	back;
-    fixed_t	top;
+    int		front;
+    int		back;
 
     if (gamestate != GS_LEVEL)
 	return 0;
@@ -240,54 +261,54 @@ int DH_GetWalls (dh_wall_t* walls, int max)
 	    if (line->sidenum[s] == -1)
 		continue;
 	    side = &sides[line->sidenum[s]];
-	    front = s ? line->backsector : line->frontsector;
-	    back = s ? line->frontsector : line->backsector;
+	    front = (s ? line->backsector : line->frontsector) - sectors;
 
-	    if (!back)
+	    if (!line->backsector)
 	    {
 		if (line->flags & ML_DONTPEGBOTTOM)
-		    top = front->floorheight
-			+ textureheight[side->midtexture];
+		    count = AddWall (walls, max, count, line, s,
+				     side->midtexture,
+				     DH_Plane (front, 0), DH_Plane (front, 1),
+				     DH_Plane (front, 0),
+				     textureheight[side->midtexture]);
 		else
-		    top = front->ceilingheight;
-		count = AddWall (walls, max, count, line, s,
-				 side->midtexture, front->floorheight,
-				 front->ceilingheight, top);
+		    count = AddWall (walls, max, count, line, s,
+				     side->midtexture,
+				     DH_Plane (front, 0), DH_Plane (front, 1),
+				     DH_Plane (front, 1), 0);
 		continue;
 	    }
+	    back = (s ? line->frontsector : line->backsector) - sectors;
 
 	    // Upper: where the ceiling steps down, and sky if both are.
-	    if (back->ceilingheight < front->ceilingheight
-		&& front->ceilingpic == skyflatnum
-		&& back->ceilingpic == skyflatnum)
-	    {
+	    if (sectors[front].ceilingpic == skyflatnum
+		&& sectors[back].ceilingpic == skyflatnum)
+		count = AddWall (walls, max, count, line, s, DH_SKY,
+				 DH_Plane (back, 1), DH_Plane (front, 1),
+				 DH_Plane (front, 1), 0);
+	    else if (line->flags & ML_DONTPEGTOP)
 		count = AddWall (walls, max, count, line, s,
-				 DH_SKY, back->ceilingheight,
-				 front->ceilingheight, front->ceilingheight);
-	    }
-	    else if (back->ceilingheight < front->ceilingheight)
-	    {
-		if (line->flags & ML_DONTPEGTOP)
-		    top = front->ceilingheight;
-		else
-		    top = back->ceilingheight
-			+ textureheight[side->toptexture];
+				 side->toptexture,
+				 DH_Plane (back, 1), DH_Plane (front, 1),
+				 DH_Plane (front, 1), 0);
+	    else
 		count = AddWall (walls, max, count, line, s,
-				 side->toptexture, back->ceilingheight,
-				 front->ceilingheight, top);
-	    }
+				 side->toptexture,
+				 DH_Plane (back, 1), DH_Plane (front, 1),
+				 DH_Plane (back, 1),
+				 textureheight[side->toptexture]);
 
 	    // Lower: where the floor steps up.
-	    if (back->floorheight > front->floorheight)
-	    {
-		if (line->flags & ML_DONTPEGBOTTOM)
-		    top = front->ceilingheight;
-		else
-		    top = back->floorheight;
+	    if (line->flags & ML_DONTPEGBOTTOM)
 		count = AddWall (walls, max, count, line, s,
-				 side->bottomtexture, front->floorheight,
-				 back->floorheight, top);
-	    }
+				 side->bottomtexture,
+				 DH_Plane (front, 0), DH_Plane (back, 0),
+				 DH_Plane (front, 1), 0);
+	    else
+		count = AddWall (walls, max, count, line, s,
+				 side->bottomtexture,
+				 DH_Plane (front, 0), DH_Plane (back, 0),
+				 DH_Plane (back, 0), 0);
 	}
     }
     return count;

@@ -77,9 +77,11 @@ Dictionary DoomSim::get_walls() const {
 	PackedFloat32Array coords;
 	PackedInt32Array textures;
 	PackedInt32Array sectors;
+	PackedInt32Array planes;
 	coords.resize(count * 10);
 	textures.resize(count);
 	sectors.resize(count);
+	planes.resize(count * 3);
 	for (int i = 0; i < count; i++) {
 		const dh_wall_t &w = walls[i];
 		const float values[10] = { w.x1, w.y1, w.x2, w.y2, w.bottom, w.top, w.u1, w.u2, w.v1, w.v2 };
@@ -88,11 +90,17 @@ Dictionary DoomSim::get_walls() const {
 		}
 		textures[i] = w.texture;
 		sectors[i] = w.sector;
+		planes[i * 3] = w.bottomplane;
+		planes[i * 3 + 1] = w.topplane;
+		planes[i * 3 + 2] = w.pegplane;
 	}
-	// coords: x1, y1, x2, y2, bottom, top, u1, u2, v1, v2 for each wall.
+	// coords: x1, y1, x2, y2, bottom, top, u1, u2, v1, v2 for each wall;
+	// planes: bottom, top and the texture's, numbered sector*2 for a
+	// floor and sector*2+1 for a ceiling.
 	d["coords"] = coords;
 	d["textures"] = textures;
 	d["sectors"] = sectors;
+	d["planes"] = planes;
 	return d;
 }
 
