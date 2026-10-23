@@ -7,6 +7,8 @@ extends CanvasLayer
 ## palette flashes, red for damage, gold for a pickup and green for the
 ## radiation suit, as a tint of the colour Doom's palette blends toward.
 
+const PALETTES := 14
+
 @export var sim: DoomSim
 
 ## Where the 3D view shows, in the screen's pixels: empty when the screen
@@ -20,14 +22,11 @@ var projection := 1.0
 @onready var _flash: ColorRect = %Flash
 
 var _texture: ImageTexture
-var _tints: Array[Color] = []
 
 
 ## Sizes the screen for the window, and keeps it so; call once the game
 ## has started.
 func start() -> void:
-	for palette in 14:
-		_tints.append(sim.get_palette_tint(palette))
 	get_window().size_changed.connect(_resize)
 	_resize()
 
@@ -48,7 +47,8 @@ func draw(fraction: float, palette: int) -> int:
 	size = image.get_size()
 	view = screen["view"]
 	projection = screen["projection"]
-	_flash.color = _tints[palette] if palette < _tints.size() else Color.TRANSPARENT
+	# Fetched each frame, not cached, so the flash follows the gamma the 2D layer does.
+	_flash.color = sim.get_palette_tint(palette) if palette > 0 and palette < PALETTES else Color.TRANSPARENT
 	return status
 
 
