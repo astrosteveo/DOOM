@@ -59,6 +59,14 @@ typedef struct
     float	x, y, z;
     float	angle;
     int		sky;		// the sky's wall texture, for DH_TextureRGBA
+    // Light the console player sees by, 0 outside a level. extralight
+    // brightens everything by that many of Doom's 16 light steps, for
+    // a muzzle flash. A fixedcolormap other than 0 draws everything but
+    // the sky through that COLORMAP row instead: 1 is the light
+    // amplification visor, all at almost full brightness; 32 is
+    // invulnerability, in inverted gray.
+    int		extralight;
+    int		fixedcolormap;
 } dh_state_t;
 
 void		DH_GetState (dh_state_t* state);

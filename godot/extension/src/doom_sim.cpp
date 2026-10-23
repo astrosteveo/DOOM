@@ -61,6 +61,8 @@ Dictionary DoomSim::get_state() const {
 	d["z"] = s.z;
 	d["angle"] = s.angle;
 	d["sky"] = s.sky;
+	d["extralight"] = s.extralight;
+	d["fixedcolormap"] = s.fixedcolormap;
 	return d;
 }
 

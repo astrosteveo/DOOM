@@ -152,9 +152,14 @@ void DH_GetState (dh_state_t* state)
 	state->y = Units (player->mo->y);
 	state->z = Units (player->viewz);
 	state->angle = Radians (player->mo->angle);
+	state->extralight = player->extralight;
+	state->fixedcolormap = player->fixedcolormap;
     }
     else
+    {
 	state->x = state->y = state->z = state->angle = 0;
+	state->extralight = state->fixedcolormap = 0;
+    }
     state->sky = skytexture;
 }
 
