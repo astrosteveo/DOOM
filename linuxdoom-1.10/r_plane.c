@@ -131,6 +131,8 @@ static visplane_t* R_NewVisplane (void)
     visplane_t*	pl;
     int		i;
     size_t	size;
+    unsigned short*	top;
+    unsigned short*	bottom;
 
     if (lastvisplane - visplanes == MAXVISPLANES)
 	I_Error ("R_NewVisplane: no more visplanes");
@@ -140,10 +142,12 @@ static visplane_t* R_NewVisplane (void)
     if (i >= numvisplanecolumns)
     {
 	size = sizeof(unsigned short);
-	pl->top = (unsigned short *)calloc (visplanewidth+2, size) + 1;
-	pl->bottom = (unsigned short *)calloc (visplanewidth+2, size) + 1;
-	if (!pl->top || !pl->bottom)
+	top = (unsigned short *)calloc (visplanewidth+2, size);
+	bottom = (unsigned short *)calloc (visplanewidth+2, size);
+	if (!top || !bottom)
 	    I_Error ("R_NewVisplane: out of memory");
+	pl->top = top + 1;
+	pl->bottom = bottom + 1;
 	numvisplanecolumns = i+1;
     }
     return pl;

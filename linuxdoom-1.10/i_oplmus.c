@@ -719,6 +719,7 @@ static void ProcessEvents (void)
     int		value;
     int		controller;
     channel_t*	channel;
+    boolean	restarted = false;
 
     while (playing && delaytics == 0)
     {
@@ -781,8 +782,11 @@ static void ProcessEvents (void)
 	    break;
 
 	  case mus_scoreend:
-	    if (looping)
+	    // A second restart in one call means a whole pass
+	    // went by with no delay; stop rather than spin.
+	    if (looping && !restarted)
 	    {
+		restarted = true;
 		Restart ();
 		continue;
 	    }
