@@ -105,5 +105,6 @@ target_link_libraries(linuxdoom PRIVATE doomengine)
 
 option(DOOM_GODOT "Build the Godot extension (fetches godot-cpp)" OFF)
 if(DOOM_GODOT)
+  enable_language(CXX)
   add_subdirectory(godot/extension)
 endif()

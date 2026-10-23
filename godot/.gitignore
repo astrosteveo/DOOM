@@ -1,0 +1,3 @@
+.godot/
+# Built by CMake with -DDOOM_GODOT=ON.
+bin/
