@@ -22,8 +22,9 @@ simulation in C, presented by Godot as a modern 3D game with custom textures and
 - `linuxdoom-1.10/d_host.h`: the engine as a library for a host that runs it a tic at a time and reads its state
   (plain C, so C++ can include it; the engine's own headers don't compile as C++).
 - `godot/`: the Godot 4.7 project. `extension/` is the GDExtension (C++, godot-cpp fetched by CMake) with the
-  `DoomSim` node; `main.tscn` runs it and `level/` builds the level from what it reads; `tools/run_demo.gd` plays a
-  demo headless.
+  `DoomSim` node; `main.tscn` runs it, `level/` builds the level from what it reads, `input/` posts the keyboard and
+  mouse to the game and `screen/` shows Doom's own 2D screen over the 3D view; `tools/run_demo.gd` plays a demo
+  headless.
 - `third_party/nuked-opl3/`: the OPL3 emulator, vendored unmodified (LGPL 2.1+).
 - `ipx/`, `sersrc/`, `sndserv/`: the original DOS network drivers and Linux sound server. Not built.
 
@@ -66,6 +67,8 @@ fails for a reason unrelated to the change, say so and show the output instead o
   (`i_system.c`).
 - `-fwrapv -fno-strict-aliasing` are load-bearing: without them the optimizer can desync demos.
 - Under gdh, `$XDG_DATA_HOME` is gdh's own, so the game doesn't find the IWAD: pass `-iwad`.
+- `-record <name>` takes at most 27 characters (`demoname` is 32 bytes with `.lmp`): a longer path overflows it and
+  crashes in both builds. Opening the menu while recording desyncs the demo, as in vanilla.
 - Only one game runs per process (the engine is globals), and `I_Quit`/`I_Error` jump back to `DH_Start`/`DH_Tic`
   through `I_HostReturn` rather than exiting.
 - The level is built from the WAD at run time, so `main.tscn` shows only the camera in the editor.

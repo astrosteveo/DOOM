@@ -91,15 +91,54 @@ textures. The level keeps two textures of sector heights, this tic's and the tic
 wall and plane vertex between them by the physics interpolation fraction, so walls and planes stay joined, and a
 door or lift rebuilds nothing. On demo1's E1M5 the median tic still takes 0.2 ms of script time.
 
-Not yet: the things are still boxes that jump from tic to tic, and their lights with them; smoothing them needs a
-way to tell a thing from one tic to the next, which can come with sprites or models. Shadows of walls a door or lift
-moves keep the wall where it was until something else in the light's range moves, since the shaders move it.
+Things and their lights move between tics too, and so does the camera. The engine already keeps where each thing and
+the eye were a tic before, for the SDL3 build's interpolation, so `DH_GetThings` and `DH_GetState` hand that over, the
+same as now when nothing moved or the game stood still. Godot places the boxes, the lights and the camera in between
+every frame, as `R_SetupFrame` and `R_ProjectSprite` do; the camera turns at once with the mouse (below). Each thing
+also has an id (`mobj_t`'s `id`, not game state), which keeps a flame's flicker steady when the light pool hands it
+another light, and will let sprites and models keep their animation.
+
+Not yet: shadows of walls a door or lift moves keep the wall where it was until something else in the light's range
+moves, since the shaders move it.
+
+## Playing it
+
+Godot plays the game as well as showing it: input goes in as Doom's own events, and Doom draws its own 2D screen.
+
+- **Input.** `DH_PostEvent` hands the game an `event_t` and runs the responders at once, as `D_DoomLoop` does
+  between tics in the SDL3 build: the menu answers, and `G_PendingTurn` turns the view with the mouse before the next
+  tic (`dh_state_t`'s `turn`). A demo ignores it as it does there, since its tics come from the demo. `DoomInput`
+  translates keys by where they are on the keyboard, as `i_video.c` does, so menus, cheats and the config's bindings
+  work as in the SDL3 build. The controls are also Input Map actions (`doom_forward` and so on), which post the key
+  the config binds each control to (`DH_ControlKey`): Godot's bindings come on top of Doom's. The mouse is captured
+  while a level is played, and turns only, as with `mouse_novert`.
+- **Doom's own 2D layer, not Godot UI.** The status bar, messages, menus, automap, intermission, finale and title
+  pages all work at once and look exactly as in the SDL3 build, which a rebuild in Godot UI would have to earn screen
+  by screen; a Godot HUD can still replace parts of it later. `DH_Draw` runs `D_Display` with `hostview` set: no
+  window, no wipe, and in place of the 3D view, the view window filled with one colour under the player's weapon.
+  To tell what else was drawn over the view (messages, the pause sign, the menu), it draws those again over a second
+  colour; where the two differ, the view shows through. `DoomScreen` shows the result over the 3D view, sharp at any
+  scale, and Godot's camera looks through Doom's view window: 90 degrees across, centred on the window, so a status
+  bar or a smaller screen size leaves the view where Doom has it. The view still walks the BSP tree each frame, which
+  marks the lines the player has seen for the automap.
+- **The screen's size.** As wide as the window, like the SDL3 build's widescreen, and 400 rows (`-scale` changes it),
+  copied to Godot every frame. Doom stretches its rows 1.2 times; Godot's 3D view has square pixels, so it shows a
+  little more above and below than Doom's, while the 2D layer is stretched as Doom's.
+- **Palette flashes.** Damage, pickups, berserk and the radiation suit tint everything, 3D and 2D, by the palette
+  Doom would switch to (`ST_Palette`, in `dh_state_t`'s `palette`): each PLAYPAL palette is the first blended toward
+  one colour, which `DH_PaletteTint` fits, and Godot blends a full-screen rectangle toward it in sRGB as the palette
+  does.
+
+A demo recorded in Godot with `-record`, walking, strafing, running, turning with the mouse, firing with the keyboard
+and the mouse, using and pausing, plays back in the SDL3 build with the same `-hashlog` on every tic. As in vanilla
+Doom, opening the menu while recording desyncs the demo: the menu stops the world in single player, and playback
+doesn't. The demo's name, path included, must fit `demoname`'s 31 characters.
 
 ## After it
 
 1. ~~Floors and ceilings: polygons rebuilt from the BSP tree, since Doom never stored them. Sky.~~ Done, above.
 2. ~~Sector lighting, then Godot's: lights for lamps and fireballs, fog, glow.~~ Done, above.
-3. Input, menus and the status bar, so the game can be played, not only watched.
+3. ~~Input, menus and the status bar, so the game can be played, not only watched.~~ Done, above.
 4. Sound and music through Godot's audio.
 5. Content: a definitions file mapping Doom's textures, flats and things to easel's PBR materials and GLB
    props, then models with animations for monsters once easel's character kind exists.
