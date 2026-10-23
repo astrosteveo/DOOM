@@ -87,7 +87,7 @@ M_DrawText
 	}
 		
 	w = SHORT (hu_font[c]->width);
-	if (x+w > SCREENWIDTH)
+	if (x+w > ORIGWIDTH)
 	    break;
 	if (direct)
 	    V_DrawPatchDirect(x, y, 0, hu_font[c]);
@@ -215,6 +215,8 @@ extern int	vsync;
 extern int	aspect_ratio_correct;
 extern int	integer_scaling;
 extern int	smooth_scaling;
+extern int	render_scale;
+extern int	widescreen;
 extern int	grabmouse;
 extern int	mouse_novert;
 extern int	snd_samplerate;
@@ -274,7 +276,7 @@ default_t	defaults[] =
     DEFINT("joyb_use", joybuse, 3),
     DEFINT("joyb_speed", joybspeed, 2),
 
-    DEFINT("screenblocks", screenblocks, 9),
+    DEFINT("screenblocks", screenblocks, 10),
     DEFINT("detaillevel", detailLevel, 0),
 
     DEFINT("fullscreen", fullscreen, 0),
@@ -284,6 +286,8 @@ default_t	defaults[] =
     DEFINT("aspect_ratio_correct", aspect_ratio_correct, 1),
     DEFINT("integer_scaling", integer_scaling, 0),
     DEFINT("smooth_scaling", smooth_scaling, 1),
+    DEFINT("render_scale", render_scale, 0),
+    DEFINT("widescreen", widescreen, 1),
 
     DEFINT("snd_channels", numChannels, 8),
     DEFINT("snd_samplerate", snd_samplerate, 48000),

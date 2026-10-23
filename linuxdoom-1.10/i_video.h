@@ -36,6 +36,10 @@
 // and sets up the video mode
 void I_InitGraphics (void);
 
+// True if the framebuffer size changed with the window's;
+// see V_SetResolution.
+boolean I_CheckResize (void);
+
 
 void I_ShutdownGraphics(void);
 

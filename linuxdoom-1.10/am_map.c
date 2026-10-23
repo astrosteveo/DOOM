@@ -107,7 +107,7 @@ static const char rcsid[] = "$Id: am_map.c,v 1.4 1997/02/03 21:24:33 b1 Exp $";
 #define INITSCALEMTOF (.2*FRACUNIT)
 // how much the automap moves window per tic in frame-buffer coordinates
 // moves 140 pixels in 1 second
-#define F_PANINC	4
+#define F_PANINC	(4*screenscale)
 // how much zoom-in per tic
 // goes to 2x in 1 second
 #define M_ZOOMIN        ((int) (1.02*FRACUNIT))
@@ -219,8 +219,6 @@ static int 	grid = 0;
 static int 	leveljuststarted = 1; 	// kluge until AM_LevelInit() is called
 
 boolean    	automapactive = false;
-static int 	finit_width = SCREENWIDTH;
-static int 	finit_height = SCREENHEIGHT - 32;
 
 // location of window on screen
 static int 	f_x;
@@ -538,9 +536,10 @@ void AM_LevelInit(void)
 {
     leveljuststarted = 0;
 
+    // The whole framebuffer above the status bar.
     f_x = f_y = 0;
-    f_w = finit_width;
-    f_h = finit_height;
+    f_w = SCREENWIDTH;
+    f_h = SCREENHEIGHT - 32*screenscale;
 
     AM_clearMarks();
 
@@ -570,10 +569,10 @@ void AM_Stop (void)
 //
 //
 //
+static int lastlevel = -1, lastepisode = -1;
+
 void AM_Start (void)
 {
-    static int lastlevel = -1, lastepisode = -1;
-
     if (!stopped) AM_Stop();
     stopped = false;
     if (lastlevel != gamemap || lastepisode != gameepisode)
@@ -584,6 +583,17 @@ void AM_Start (void)
     }
     AM_initVariables();
     AM_loadPics();
+}
+
+//
+// AM_Resize
+// The framebuffer changed size: lay the map out again.
+//
+void AM_Resize (void)
+{
+    lastlevel = -1;
+    if (automapactive)
+	AM_Start ();
 }
 
 //
@@ -972,6 +982,23 @@ AM_clipMline
 
 
 //
+// AM_putDot
+// One pixel at the original resolution; a few at high resolutions,
+// where single pixel lines all but vanish.
+//
+static void AM_putDot (int x, int y, int color)
+{
+    int		thick;
+    int		dx;
+    int		dy;
+
+    thick = (screenscale + 2) / 3;
+    for (dy=0 ; dy<thick && y+dy<f_h ; dy++)
+	for (dx=0 ; dx<thick && x+dx<f_w ; dx++)
+	    fb[(y+dy)*f_w + x+dx] = color;
+}
+
+//
 // Classic Bresenham w/ whatever optimizations needed for speed
 //
 void
@@ -1001,7 +1028,7 @@ AM_drawFline
 	return;
     }
 
-#define PUTDOT(xx,yy,cc) fb[(yy)*f_w+(xx)]=(cc)
+#define PUTDOT(xx,yy,cc) AM_putDot(xx,yy,cc)
 
     dx = fl->b.x - fl->a.x;
     ax = 2 * (dx<0 ? -dx : dx);
@@ -1312,12 +1339,12 @@ void AM_drawMarks(void)
 	{
 	    //      w = SHORT(marknums[i]->width);
 	    //      h = SHORT(marknums[i]->height);
-	    w = 5; // because something's wrong with the wad, i guess
-	    h = 6; // because something's wrong with the wad, i guess
+	    w = 5*screenscale; // because something's wrong with the wad, i guess
+	    h = 6*screenscale; // because something's wrong with the wad, i guess
 	    fx = CXMTOF(markpoints[i].x);
 	    fy = CYMTOF(markpoints[i].y);
 	    if (fx >= f_x && fx <= f_w - w && fy >= f_y && fy <= f_h - h)
-		V_DrawPatch(fx, fy, FB, marknums[i]);
+		V_DrawPatchFB(fx, fy, FB, marknums[i]);
 	}
     }
 

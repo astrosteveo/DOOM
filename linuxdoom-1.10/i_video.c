@@ -53,6 +53,8 @@ int		integer_scaling = 0;
 int		smooth_scaling = 1;
 int		grabmouse = 1;
 int		mouse_novert = 1;
+int		render_scale = 0;	// framebuffer = this * 200 rows; 0 to fit the window
+int		widescreen = 1;
 
 extern int	usemouse;
 
@@ -70,6 +72,8 @@ static SDL_Texture*	upscaletex;
 static int		upscalefactor;
 
 static Uint32		palette32[256];
+
+static boolean		resizepending;
 
 static boolean		mousegrabbed;
 static float		mouseaccumx;
@@ -337,6 +341,10 @@ void I_StartTic (void)
 	    }
 	    break;
 
+	  case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+	    resizepending = true;
+	    break;
+
 	  case SDL_EVENT_WINDOW_FOCUS_LOST:
 	    // Don't leave buttons held down while away.
 	    if (mousebuttonstate)
@@ -374,28 +382,27 @@ void I_UpdateNoBlit (void)
 static void GetDestRect (int outw, int outh, SDL_FRect* rect)
 {
     double	aspect;
+    double	pixelaspect;
     double	w;
     double	h;
     int		scale;
 
     // 320x200 filled a 4:3 monitor, so pixels were 20% taller than wide.
-    if (aspect_ratio_correct)
-	aspect = 4.0 / 3.0;
-    else
-	aspect = (double)SCREENWIDTH / SCREENHEIGHT;
+    pixelaspect = aspect_ratio_correct ? 1.2 : 1.0;
+    aspect = SCREENWIDTH / (SCREENHEIGHT * pixelaspect);
 
+    scale = 0;
     if (integer_scaling)
     {
-	int	basew = SCREENWIDTH;
-	int	baseh = aspect_ratio_correct ? SCREENWIDTH*3/4 : SCREENHEIGHT;
+	scale = outw / SCREENWIDTH;
+	if (outh / (int)(SCREENHEIGHT*pixelaspect) < scale)
+	    scale = outh / (int)(SCREENHEIGHT*pixelaspect);
+    }
 
-	scale = outw / basew;
-	if (outh / baseh < scale)
-	    scale = outh / baseh;
-	if (scale < 1)
-	    scale = 1;
-	w = basew * scale;
-	h = baseh * scale;
+    if (scale >= 1)
+    {
+	w = SCREENWIDTH * scale;
+	h = (int)(SCREENHEIGHT*pixelaspect) * scale;
     }
     else if (outw > outh * aspect)
     {
@@ -417,20 +424,21 @@ static void GetDestRect (int outw, int outh, SDL_FRect* rect)
 //
 // UpdateUpscaleTexture
 // Keeps the intermediate texture big enough that the final linear
-// pass only ever scales down.
+// pass only ever scales down. Returns false if the framebuffer is
+// already that big, as it normally is.
 //
-static void UpdateUpscaleTexture (const SDL_FRect* dest)
+static boolean UpdateUpscaleTexture (const SDL_FRect* dest)
 {
     int		factor;
 
     factor = (int)ceil (dest->h / SCREENHEIGHT);
     if (factor < (int)ceil (dest->w / SCREENWIDTH))
 	factor = (int)ceil (dest->w / SCREENWIDTH);
-    if (factor < 1)
-	factor = 1;
+    if (factor <= 1)
+	return false;
 
     if (upscaletex && factor == upscalefactor)
-	return;
+	return true;
 
     if (upscaletex)
 	SDL_DestroyTexture (upscaletex);
@@ -441,6 +449,7 @@ static void UpdateUpscaleTexture (const SDL_FRect* dest)
 	I_Error ("Could not create upscale texture: %s", SDL_GetError ());
     SDL_SetTextureScaleMode (upscaletex, SDL_SCALEMODE_LINEAR);
     upscalefactor = factor;
+    return true;
 }
 
 //
@@ -496,9 +505,9 @@ void I_FinishUpdate (void)
     SDL_SetRenderDrawColor (renderer, 0, 0, 0, 255);
     SDL_RenderClear (renderer);
 
-    if (smooth_scaling && !integer_scaling)
+    if (smooth_scaling && !integer_scaling && UpdateUpscaleTexture (&destrect))
     {
-	UpdateUpscaleTexture (&destrect);
+	SDL_SetTextureScaleMode (screentex, SDL_SCALEMODE_NEAREST);
 	SDL_SetRenderTarget (renderer, upscaletex);
 	SDL_RenderTexture (renderer, screentex, NULL, NULL);
 	SDL_SetRenderTarget (renderer, NULL);
@@ -506,6 +515,8 @@ void I_FinishUpdate (void)
     }
     else
     {
+	SDL_SetTextureScaleMode (screentex, smooth_scaling && !integer_scaling
+				 ? SDL_SCALEMODE_LINEAR : SDL_SCALEMODE_NEAREST);
 	SDL_RenderTexture (renderer, screentex, NULL, &destrect);
     }
 
@@ -541,6 +552,78 @@ void I_SetPalette (byte* palette)
     }
 }
 
+
+//
+// ChooseResolution
+// Sets the framebuffer size for the window's current size.
+//
+static void ChooseResolution (void)
+{
+    int		w;
+    int		h;
+    int		scale;
+    double	pixelaspect;
+    double	aspect;
+
+    SDL_GetWindowSizeInPixels (window, &w, &h);
+    if (w < 1 || h < 1)
+	return;
+
+    pixelaspect = aspect_ratio_correct ? 1.2 : 1.0;
+
+    // Enough rows that the picture is only ever scaled down.
+    scale = render_scale;
+    if (scale <= 0)
+	scale = (int)ceil (h / (ORIGHEIGHT * pixelaspect));
+
+    if (widescreen)
+	aspect = (double)w / h * pixelaspect;
+    else
+	aspect = (double)ORIGWIDTH / ORIGHEIGHT;
+
+    V_SetResolution (scale, aspect);
+}
+
+static void CreateScreenTexture (void)
+{
+    if (screentex)
+	SDL_DestroyTexture (screentex);
+    if (upscaletex)
+	SDL_DestroyTexture (upscaletex);
+    upscaletex = NULL;
+
+    screentex = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_XRGB8888,
+				   SDL_TEXTUREACCESS_STREAMING,
+				   SCREENWIDTH, SCREENHEIGHT);
+    if (!screentex)
+	I_Error ("Could not create screen texture: %s", SDL_GetError ());
+}
+
+//
+// I_CheckResize
+// Called between frames. If the window changed size, picks a new
+// framebuffer size and returns true if it differs, after which the
+// screens must be reallocated and everything redrawn.
+//
+boolean I_CheckResize (void)
+{
+    int		oldw;
+    int		oldh;
+
+    if (!resizepending)
+	return false;
+    resizepending = false;
+
+    oldw = SCREENWIDTH;
+    oldh = SCREENHEIGHT;
+    ChooseResolution ();
+    if (SCREENWIDTH == oldw && SCREENHEIGHT == oldh)
+	return false;
+
+    CreateScreenTexture ();
+    printf ("I_CheckResize: %dx%d framebuffer\n", SCREENWIDTH, SCREENHEIGHT);
+    return true;
+}
 
 //
 // PickWindowSize
@@ -590,6 +673,12 @@ void I_InitGraphics(void)
 	fullscreen = 0;
     if (M_CheckParm ("-nograbmouse"))
 	grabmouse = 0;
+    {
+	int	p = M_CheckParm ("-scale");
+
+	if (p && p < myargc-1)
+	    render_scale = atoi (myargv[p+1]);
+    }
 
     if (!SDL_InitSubSystem (SDL_INIT_VIDEO))
 	I_Error ("Could not initialize SDL video: %s", SDL_GetError ());
@@ -603,22 +692,24 @@ void I_InitGraphics(void)
     window = SDL_CreateWindow (PROGRAM_TITLE, w, h, flags);
     if (!window)
 	I_Error ("Could not create window: %s", SDL_GetError ());
-    SDL_SetWindowMinimumSize (window, SCREENWIDTH, SCREENWIDTH*3/4);
+    SDL_SetWindowMinimumSize (window, ORIGWIDTH, ORIGWIDTH*3/4);
 
     renderer = SDL_CreateRenderer (window, NULL);
     if (!renderer)
 	I_Error ("Could not create renderer: %s", SDL_GetError ());
     SDL_SetRenderVSync (renderer, vsync ? 1 : SDL_RENDERER_VSYNC_DISABLED);
 
-    screentex = SDL_CreateTexture (renderer, SDL_PIXELFORMAT_XRGB8888,
-				   SDL_TEXTUREACCESS_STREAMING,
-				   SCREENWIDTH, SCREENHEIGHT);
-    if (!screentex)
-	I_Error ("Could not create screen texture: %s", SDL_GetError ());
-    SDL_SetTextureScaleMode (screentex, SDL_SCALEMODE_NEAREST);
+    // On Wayland the window's real size is only known once the
+    // compositor has configured it.
+    SDL_SyncWindow (window);
+    SDL_GetWindowSizeInPixels (window, &w, &h);
 
-    printf ("I_InitGraphics: %dx%d window, %s renderer\n",
-	    w, h, SDL_GetRendererName (renderer));
+    ChooseResolution ();
+    CreateScreenTexture ();
+
+    printf ("I_InitGraphics: %dx%d window (%s), %dx%d framebuffer, %s renderer\n",
+	    w, h, SDL_GetCurrentVideoDriver (), SCREENWIDTH, SCREENHEIGHT,
+	    SDL_GetRendererName (renderer));
 
     UpdateMouseGrab ();
 }

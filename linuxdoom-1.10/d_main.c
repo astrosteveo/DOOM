@@ -212,6 +212,17 @@ void D_Display (void)
 	return;                    // for comparative timing / profiling
 		
     redrawsbar = false;
+
+    // A new framebuffer size means new screens, with everything
+    // on them to be redrawn.
+    if (I_CheckResize ())
+    {
+	V_Init ();
+	R_InitPlanes ();
+	AM_Resize ();
+	setsizeneeded = true;
+	redrawsbar = true;
+    }
     
     // change the view size if needed
     if (setsizeneeded)
@@ -241,12 +252,12 @@ void D_Display (void)
 	    break;
 	if (automapactive)
 	    AM_Drawer ();
-	if (wipe || (viewheight != 200 && fullscreen) )
+	if (wipe || (viewheight != SCREENHEIGHT && fullscreen) )
 	    redrawsbar = true;
 	if (inhelpscreensstate && !inhelpscreens)
 	    redrawsbar = true;              // just put away the help screen
-	ST_Drawer (viewheight == 200, redrawsbar );
-	fullscreen = viewheight == 200;
+	ST_Drawer (viewheight == SCREENHEIGHT, redrawsbar );
+	fullscreen = viewheight == SCREENHEIGHT;
 	break;
 
       case GS_INTERMISSION:
@@ -284,7 +295,7 @@ void D_Display (void)
     }
 
     // see if the border needs to be updated to the screen
-    if (gamestate == GS_LEVEL && !automapactive && scaledviewwidth != 320)
+    if (gamestate == GS_LEVEL && !automapactive && scaledviewwidth != SCREENWIDTH)
     {
 	if (menuactive || menuactivestate || !viewactivestate)
 	    borderdrawcount = 3;
@@ -307,8 +318,8 @@ void D_Display (void)
 	if (automapactive)
 	    y = 4;
 	else
-	    y = viewwindowy+4;
-	V_DrawPatchDirect(viewwindowx+(scaledviewwidth-68)/2,
+	    y = viewwindowy/screenscale+4;
+	V_DrawPatchDirect((ORIGWIDTH-68)/2,
 			  y,0,W_CacheLumpName ("M_PAUSE", PU_CACHE));
     }
 
@@ -437,6 +448,7 @@ void D_PageTicker (void)
 //
 void D_PageDrawer (void)
 {
+    V_ClearMargins (0);
     V_DrawPatch (0,0, 0, W_CacheLumpName(pagename, PU_CACHE));
 }
 
@@ -881,11 +893,15 @@ void D_DoomMain (void)
     }
     
     // init subsystems
-    printf ("V_Init: allocate screens.\n");
-    V_Init ();
-
     printf ("M_LoadDefaults: Load system defaults.\n");
     M_LoadDefaults ();              // load before initing other systems
+
+    // The window decides the framebuffer size, so it comes first.
+    printf ("I_InitGraphics: open the window.\n");
+    I_InitGraphics ();
+
+    printf ("V_Init: allocate screens.\n");
+    V_Init ();
 
     printf ("Z_Init: Init zone memory allocation daemon. \n");
     Z_Init ();

@@ -108,13 +108,28 @@ typedef enum
 #define	SCREEN_MUL		1
 #define	INV_ASPECT_RATIO	0.625 // 0.75, ideally
 
-// Defines suck. C sucks.
-// C++ might sucks for OOP, but it sure is a better C.
-// So there.
-#define SCREENWIDTH  320
-//SCREEN_MUL*BASE_WIDTH //320
-#define SCREENHEIGHT 200
-//(int)(SCREEN_MUL*BASE_WIDTH*INV_ASPECT_RATIO) //200
+// The original screen. The status bar, menus and other 2D graphics
+// are laid out in these coordinates and scaled up to the framebuffer.
+#define ORIGWIDTH	320
+#define ORIGHEIGHT	200
+
+// The framebuffer is chosen at startup to suit the window: a whole
+// multiple (screenscale) of the original height, as wide as the
+// window's shape allows. Its pixels keep the original 1:1.2 aspect;
+// they are stretched when presented. The 4:3 area the original
+// screen maps to starts screenleft pixels in.
+extern int	screenwidth;
+extern int	screenheight;
+extern int	screenscale;
+extern int	screenleft;
+
+#define SCREENWIDTH	screenwidth
+#define SCREENHEIGHT	screenheight
+
+// Limits for buffers sized by the framebuffer.
+#define MAXSCREENSCALE	18
+#define MAXWIDTH	10240
+#define MAXHEIGHT	(ORIGHEIGHT*MAXSCREENSCALE)
 
 
 

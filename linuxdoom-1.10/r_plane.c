@@ -49,14 +49,18 @@ planefunction_t		ceilingfunc;
 //
 
 // Here comes the obnoxious "visplane".
-#define MAXVISPLANES	128
+// Their column arrays are allocated as planes are first needed.
+#define MAXVISPLANES	8192
 visplane_t		visplanes[MAXVISPLANES];
 visplane_t*		lastvisplane;
 visplane_t*		floorplane;
 visplane_t*		ceilingplane;
 
+static int		numvisplanecolumns;	// planes with columns allocated
+static int		visplanewidth;		// what they were allocated for
+
 // ?
-#define MAXOPENINGS	SCREENWIDTH*64
+#define MAXOPENINGS	MAXWIDTH*128
 short			openings[MAXOPENINGS];
 short*			lastopening;
 
@@ -66,15 +70,15 @@ short*			lastopening;
 //  floorclip starts out SCREENHEIGHT
 //  ceilingclip starts out -1
 //
-short			floorclip[SCREENWIDTH];
-short			ceilingclip[SCREENWIDTH];
+short			floorclip[MAXWIDTH];
+short			ceilingclip[MAXWIDTH];
 
 //
 // spanstart holds the start of a plane span
 // initialized to 0 at start
 //
-int			spanstart[SCREENHEIGHT];
-int			spanstop[SCREENHEIGHT];
+int			spanstart[MAXHEIGHT];
+int			spanstop[MAXHEIGHT];
 
 //
 // texture mapping
@@ -82,15 +86,20 @@ int			spanstop[SCREENHEIGHT];
 lighttable_t**		planezlight;
 fixed_t			planeheight;
 
-fixed_t			yslope[SCREENHEIGHT];
-fixed_t			distscale[SCREENWIDTH];
+fixed_t			yslope[MAXHEIGHT];
+fixed_t			distscale[MAXWIDTH];
 fixed_t			basexscale;
 fixed_t			baseyscale;
 
-fixed_t			cachedheight[SCREENHEIGHT];
-fixed_t			cacheddistance[SCREENHEIGHT];
-fixed_t			cachedxstep[SCREENHEIGHT];
-fixed_t			cachedystep[SCREENHEIGHT];
+// The direction of increasing x across the view, at unit distance
+// from the projection plane; see R_MapPlane.
+static fixed_t		basexcos;
+static fixed_t		baseysin;
+
+fixed_t			cachedheight[MAXHEIGHT];
+fixed_t			cacheddistance[MAXHEIGHT];
+fixed_t			cachedxstep[MAXHEIGHT];
+fixed_t			cachedystep[MAXHEIGHT];
 
 
 
@@ -100,7 +109,44 @@ fixed_t			cachedystep[SCREENHEIGHT];
 //
 void R_InitPlanes (void)
 {
-  // Doh!
+    int		i;
+
+    // Called again when the resolution changes.
+    for (i=0 ; i<numvisplanecolumns ; i++)
+    {
+	free (visplanes[i].top - 1);
+	free (visplanes[i].bottom - 1);
+	visplanes[i].top = visplanes[i].bottom = NULL;
+    }
+    numvisplanecolumns = 0;
+    visplanewidth = SCREENWIDTH;
+}
+
+//
+// R_NewVisplane
+// Hands out the next visplane, giving it columns if it has none.
+//
+static visplane_t* R_NewVisplane (void)
+{
+    visplane_t*	pl;
+    int		i;
+    size_t	size;
+
+    if (lastvisplane - visplanes == MAXVISPLANES)
+	I_Error ("R_NewVisplane: no more visplanes");
+
+    pl = lastvisplane++;
+    i = pl - visplanes;
+    if (i >= numvisplanecolumns)
+    {
+	size = sizeof(unsigned short);
+	pl->top = (unsigned short *)calloc (visplanewidth+2, size) + 1;
+	pl->bottom = (unsigned short *)calloc (visplanewidth+2, size) + 1;
+	if (!pl->top || !pl->bottom)
+	    I_Error ("R_NewVisplane: out of memory");
+	numvisplanecolumns = i+1;
+    }
+    return pl;
 }
 
 
@@ -123,9 +169,7 @@ R_MapPlane
   int		x1,
   int		x2 )
 {
-    angle_t	angle;
     fixed_t	distance;
-    fixed_t	length;
     unsigned	index;
 	
 #ifdef RANGECHECK
@@ -142,8 +186,10 @@ R_MapPlane
     {
 	cachedheight[y] = planeheight;
 	distance = cacheddistance[y] = FixedMul (planeheight, yslope[y]);
-	ds_xstep = cachedxstep[y] = FixedMul (distance,basexscale);
-	ds_ystep = cachedystep[y] = FixedMul (distance,baseyscale);
+	// distance * base?scale, without the precision base?scale
+	// loses when the projection is large.
+	ds_xstep = cachedxstep[y] = (fixed_t)((int64_t)distance*basexcos/projection);
+	ds_ystep = cachedystep[y] = (fixed_t)((int64_t)distance*baseysin/projection);
     }
     else
     {
@@ -152,10 +198,14 @@ R_MapPlane
 	ds_ystep = cachedystep[y];
     }
 	
-    length = FixedMul (distance,distscale[x1]);
-    angle = (viewangle + xtoviewangle[x1])>>ANGLETOFINESHIFT;
-    ds_xfrac = viewx + FixedMul(finecosine[angle], length);
-    ds_yfrac = -viewy - FixedMul(finesine[angle], length);
+    // The point straight ahead at this distance, then across to x1.
+    // (The original went by xtoviewangle, whose coarse angles make
+    // flats wobble at high resolutions.) The sums may wrap: flats
+    // repeat long before that matters.
+    ds_xfrac = viewx + (fixed_t)(((int64_t)distance*viewcos) >> FRACBITS)
+	+ (x1-centerx)*ds_xstep;
+    ds_yfrac = -viewy - (fixed_t)(((int64_t)distance*viewsin) >> FRACBITS)
+	+ (x1-centerx)*ds_ystep;
 
     if (fixedcolormap)
 	ds_colormap = fixedcolormap;
@@ -204,8 +254,10 @@ void R_ClearPlanes (void)
     angle = (viewangle-ANG90)>>ANGLETOFINESHIFT;
 	
     // scale will be unit scale at SCREENWIDTH/2 distance
-    basexscale = FixedDiv (finecosine[angle],centerxfrac);
-    baseyscale = -FixedDiv (finesine[angle],centerxfrac);
+    basexscale = FixedDiv (finecosine[angle],projection);
+    baseyscale = -FixedDiv (finesine[angle],projection);
+    basexcos = finecosine[angle];
+    baseysin = -finesine[angle];
 }
 
 
@@ -242,10 +294,7 @@ R_FindPlane
     if (check < lastvisplane)
 	return check;
 		
-    if (lastvisplane - visplanes == MAXVISPLANES)
-	I_Error ("R_FindPlane: no more visplanes");
-		
-    lastvisplane++;
+    check = R_NewVisplane ();
 
     check->height = height;
     check->picnum = picnum;
@@ -253,7 +302,7 @@ R_FindPlane
     check->minx = SCREENWIDTH;
     check->maxx = -1;
     
-    memset (check->top,0xff,sizeof(check->top));
+    memset (check->top,0xff,SCREENWIDTH*sizeof(*check->top));
 		
     return check;
 }
@@ -297,7 +346,7 @@ R_CheckPlane
     }
 
     for (x=intrl ; x<= intrh ; x++)
-	if (pl->top[x] != 0xff)
+	if (pl->top[x] != VP_EMPTY)
 	    break;
 
     if (x > intrh)
@@ -310,15 +359,18 @@ R_CheckPlane
     }
 	
     // make a new visplane
-    lastvisplane->height = pl->height;
-    lastvisplane->picnum = pl->picnum;
-    lastvisplane->lightlevel = pl->lightlevel;
-    
-    pl = lastvisplane++;
+    {
+	visplane_t*	old = pl;
+
+	pl = R_NewVisplane ();
+	pl->height = old->height;
+	pl->picnum = old->picnum;
+	pl->lightlevel = old->lightlevel;
+    }
     pl->minx = start;
     pl->maxx = stop;
 
-    memset (pl->top,0xff,sizeof(pl->top));
+    memset (pl->top,0xff,SCREENWIDTH*sizeof(*pl->top));
 		
     return pl;
 }
@@ -435,8 +487,12 @@ void R_DrawPlanes (void)
 
 	planezlight = zlight[light];
 
-	pl->top[pl->maxx+1] = 0xff;
-	pl->top[pl->minx-1] = 0xff;
+	// The original set only the top padding, leaving the bottom
+	// one as whatever was there; an empty column needs bottom < top.
+	pl->top[pl->maxx+1] = VP_EMPTY;
+	pl->top[pl->minx-1] = VP_EMPTY;
+	pl->bottom[pl->maxx+1] = 0;
+	pl->bottom[pl->minx-1] = 0;
 		
 	stop = pl->maxx + 1;
 

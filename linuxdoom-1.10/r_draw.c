@@ -43,12 +43,8 @@ rcsid[] = "$Id: r_draw.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
 #include "doomstat.h"
 
 
-// ?
-#define MAXWIDTH			1120
-#define MAXHEIGHT			832
-
 // status bar height at bottom of screen
-#define SBARHEIGHT		32
+#define SBARHEIGHT		(32*screenscale)
 
 //
 // All drawing to the view buffer is accomplished in this file.
@@ -257,9 +253,9 @@ void R_DrawColumnLow (void)
 // Spectre/Invisibility.
 //
 #define FUZZTABLE		50 
-#define FUZZOFF	(SCREENWIDTH)
+#define FUZZOFF	1
 
-
+// Rows up or down; scaled by the framebuffer pitch and screenscale.
 int	fuzzoffset[FUZZTABLE] =
 {
     FUZZOFF,-FUZZOFF,FUZZOFF,-FUZZOFF,FUZZOFF,FUZZOFF,-FUZZOFF,
@@ -288,14 +284,20 @@ void R_DrawFuzzColumn (void)
     byte*		dest; 
     fixed_t		frac;
     fixed_t		fracstep;	 
+    int			offset;
+    int			run;
+
+    // The fuzz works in original sized pixels: it reads one of those
+    // above or below, and keeps each offset for that many rows.
+    offset = SCREENWIDTH*screenscale;
 
     // Adjust borders. Low... 
-    if (!dc_yl) 
-	dc_yl = 1;
+    if (dc_yl < screenscale) 
+	dc_yl = screenscale;
 
     // .. and high.
-    if (dc_yh == viewheight-1) 
-	dc_yh = viewheight - 2; 
+    if (dc_yh > viewheight-1-screenscale) 
+	dc_yh = viewheight-1-screenscale; 
 		 
     count = dc_yh - dc_yl; 
 
@@ -349,17 +351,22 @@ void R_DrawFuzzColumn (void)
     // Looks like an attempt at dithering,
     //  using the colormap #6 (of 0-31, a bit
     //  brighter than average).
+    run = 0;
     do 
     {
 	// Lookup framebuffer, and retrieve
 	//  a pixel that is either one column
 	//  left or right of the current one.
 	// Add index from colormap to index.
-	*dest = colormaps[6*256+dest[fuzzoffset[fuzzpos]]]; 
+	*dest = colormaps[6*256+dest[fuzzoffset[fuzzpos]*offset]]; 
 
 	// Clamp table lookup index.
-	if (++fuzzpos == FUZZTABLE) 
-	    fuzzpos = 0;
+	if (++run == screenscale)
+	{
+	    run = 0;
+	    if (++fuzzpos == FUZZTABLE) 
+		fuzzpos = 0;
+	}
 	
 	dest += SCREENWIDTH;
 
@@ -731,9 +738,9 @@ R_InitBuffer
 void R_FillBackScreen (void) 
 { 
     byte*	src;
-    byte*	dest; 
     int		x;
     int		y; 
+    int		step;
     patch_t*	patch;
 
     // DOOM border patch.
@@ -744,7 +751,7 @@ void R_FillBackScreen (void)
 
     char*	name;
 	
-    if (scaledviewwidth == 320)
+    if (scaledviewwidth == SCREENWIDTH)
 	return;
 	
     if ( gamemode == commercial)
@@ -753,61 +760,49 @@ void R_FillBackScreen (void)
 	name = name1;
     
     src = W_CacheLumpName (name, PU_CACHE); 
-    dest = screens[1]; 
-	 
-    for (y=0 ; y<SCREENHEIGHT-SBARHEIGHT ; y++) 
-    { 
-	for (x=0 ; x<SCREENWIDTH/64 ; x++) 
-	{ 
-	    memcpy (dest, src+((y&63)<<6), 64); 
-	    dest += 64; 
-	} 
-
-	if (SCREENWIDTH&63) 
-	{ 
-	    memcpy (dest, src+((y&63)<<6), SCREENWIDTH&63); 
-	    dest += (SCREENWIDTH&63); 
-	} 
-    } 
+    V_TileFlat (0, 0, SCREENWIDTH, SCREENHEIGHT-SBARHEIGHT, 1, src);
 	
+    // The bevel is made of 8 pixel pieces.
+    step = 8*screenscale;
+
     patch = W_CacheLumpName ("brdr_t",PU_CACHE);
 
-    for (x=0 ; x<scaledviewwidth ; x+=8)
-	V_DrawPatch (viewwindowx+x,viewwindowy-8,1,patch);
+    for (x=0 ; x<scaledviewwidth ; x+=step)
+	V_DrawPatchFB (viewwindowx+x,viewwindowy-step,1,patch);
     patch = W_CacheLumpName ("brdr_b",PU_CACHE);
 
-    for (x=0 ; x<scaledviewwidth ; x+=8)
-	V_DrawPatch (viewwindowx+x,viewwindowy+viewheight,1,patch);
+    for (x=0 ; x<scaledviewwidth ; x+=step)
+	V_DrawPatchFB (viewwindowx+x,viewwindowy+viewheight,1,patch);
     patch = W_CacheLumpName ("brdr_l",PU_CACHE);
 
-    for (y=0 ; y<viewheight ; y+=8)
-	V_DrawPatch (viewwindowx-8,viewwindowy+y,1,patch);
+    for (y=0 ; y<viewheight ; y+=step)
+	V_DrawPatchFB (viewwindowx-step,viewwindowy+y,1,patch);
     patch = W_CacheLumpName ("brdr_r",PU_CACHE);
 
-    for (y=0 ; y<viewheight ; y+=8)
-	V_DrawPatch (viewwindowx+scaledviewwidth,viewwindowy+y,1,patch);
+    for (y=0 ; y<viewheight ; y+=step)
+	V_DrawPatchFB (viewwindowx+scaledviewwidth,viewwindowy+y,1,patch);
 
 
     // Draw beveled edge. 
-    V_DrawPatch (viewwindowx-8,
-		 viewwindowy-8,
-		 1,
-		 W_CacheLumpName ("brdr_tl",PU_CACHE));
+    V_DrawPatchFB (viewwindowx-step,
+		   viewwindowy-step,
+		   1,
+		   W_CacheLumpName ("brdr_tl",PU_CACHE));
     
-    V_DrawPatch (viewwindowx+scaledviewwidth,
-		 viewwindowy-8,
-		 1,
-		 W_CacheLumpName ("brdr_tr",PU_CACHE));
+    V_DrawPatchFB (viewwindowx+scaledviewwidth,
+		   viewwindowy-step,
+		   1,
+		   W_CacheLumpName ("brdr_tr",PU_CACHE));
     
-    V_DrawPatch (viewwindowx-8,
-		 viewwindowy+viewheight,
-		 1,
-		 W_CacheLumpName ("brdr_bl",PU_CACHE));
+    V_DrawPatchFB (viewwindowx-step,
+		   viewwindowy+viewheight,
+		   1,
+		   W_CacheLumpName ("brdr_bl",PU_CACHE));
     
-    V_DrawPatch (viewwindowx+scaledviewwidth,
-		 viewwindowy+viewheight,
-		 1,
-		 W_CacheLumpName ("brdr_br",PU_CACHE));
+    V_DrawPatchFB (viewwindowx+scaledviewwidth,
+		   viewwindowy+viewheight,
+		   1,
+		   W_CacheLumpName ("brdr_br",PU_CACHE));
 } 
  
 

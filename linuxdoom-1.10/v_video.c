@@ -28,6 +28,8 @@ static const char
 rcsid[] = "$Id: v_video.c,v 1.5 1997/02/03 22:45:13 b1 Exp $";
 
 
+#include <stdlib.h>
+
 #include "i_system.h"
 #include "r_local.h"
 
@@ -153,6 +155,7 @@ V_MarkRect
 
 //
 // V_CopyRect 
+// Takes original screen coordinates, like the patch drawers.
 // 
 void
 V_CopyRect
@@ -170,12 +173,12 @@ V_CopyRect
 	 
 #ifdef RANGECHECK 
     if (srcx<0
-	||srcx+width >SCREENWIDTH
+	||srcx+width >ORIGWIDTH
 	|| srcy<0
-	|| srcy+height>SCREENHEIGHT 
-	||destx<0||destx+width >SCREENWIDTH
+	|| srcy+height>ORIGHEIGHT 
+	||destx<0||destx+width >ORIGWIDTH
 	|| desty<0
-	|| desty+height>SCREENHEIGHT 
+	|| desty+height>ORIGHEIGHT 
 	|| (unsigned)srcscrn>4
 	|| (unsigned)destscrn>4)
     {
@@ -184,8 +187,12 @@ V_CopyRect
 #endif 
     V_MarkRect (destx, desty, width, height); 
 	 
-    src = screens[srcscrn]+SCREENWIDTH*srcy+srcx; 
-    dest = screens[destscrn]+SCREENWIDTH*desty+destx; 
+    width *= screenscale;
+    height *= screenscale;
+    src = screens[srcscrn] + SCREENWIDTH*srcy*screenscale
+	+ screenleft + srcx*screenscale;
+    dest = screens[destscrn] + SCREENWIDTH*desty*screenscale
+	+ screenleft + destx*screenscale;
 
     for ( ; height>0 ; height--) 
     { 
@@ -197,8 +204,156 @@ V_CopyRect
  
 
 //
+// V_CopyRectFB
+// V_CopyRect in framebuffer coordinates.
+//
+void
+V_CopyRectFB
+( int		srcx,
+  int		srcy,
+  int		srcscrn,
+  int		width,
+  int		height,
+  int		destx,
+  int		desty,
+  int		destscrn ) 
+{ 
+    byte*	src;
+    byte*	dest; 
+
+    src = screens[srcscrn] + SCREENWIDTH*srcy + srcx;
+    dest = screens[destscrn] + SCREENWIDTH*desty + destx;
+    for ( ; height>0 ; height--) 
+    { 
+	memcpy (dest, src, width); 
+	src += SCREENWIDTH; 
+	dest += SCREENWIDTH; 
+    } 
+}
+
+//
+// DrawPatchColumns
+// Draws a patch scaled up by screenscale with its top left corner at
+// framebuffer position x, y, clipped to the framebuffer. Optionally
+// mirrored.
+//
+static void
+DrawPatchColumns
+( int		x,
+  int		y,
+  int		scrn,
+  patch_t*	patch,
+  boolean	flipped ) 
+{ 
+    int		col; 
+    int		w; 
+    int		scale;
+    int		x1;
+    int		x2;
+    int		top;
+    int		count;
+    int		y1;
+    int		y2;
+    int		py;
+    column_t*	column; 
+    byte*	source; 
+    byte*	screen;
+
+    scale = screenscale;
+    screen = screens[scrn];
+    w = SHORT(patch->width); 
+
+    for (col=0 ; col<w ; col++)
+    { 
+	x1 = x + col*scale;
+	x2 = x1 + scale;
+	if (x2 <= 0)
+	    continue;
+	if (x1 >= SCREENWIDTH)
+	    break;
+	if (x1 < 0)
+	    x1 = 0;
+	if (x2 > SCREENWIDTH)
+	    x2 = SCREENWIDTH;
+
+	column = (column_t *)((byte *)patch
+		    + LONG(patch->columnofs[flipped ? w-1-col : col])); 
+	 
+	// step through the posts in a column 
+	while (column->topdelta != 0xff ) 
+	{ 
+	    source = (byte *)column + 3; 
+	    top = y + column->topdelta*scale;
+	    count = column->length;
+
+	    for ( ; count>0 ; count--, source++, top += scale)
+	    {
+		y1 = top;
+		y2 = top + scale;
+		if (y2 <= 0)
+		    continue;
+		if (y1 >= SCREENHEIGHT)
+		    break;
+		if (y1 < 0)
+		    y1 = 0;
+		if (y2 > SCREENHEIGHT)
+		    y2 = SCREENHEIGHT;
+
+		for (py=y1 ; py<y2 ; py++)
+		    memset (screen + py*SCREENWIDTH + x1, *source, x2-x1);
+	    }
+	    column = (column_t *)(  (byte *)column + column->length 
+				    + 4 ); 
+	} 
+    }			 
+} 
+
+//
+// V_DrawPatchColumn
+// Draws column col of a patch at x, y on the original screen.
+//
+void
+V_DrawPatchColumn
+( int		x,
+  int		y,
+  int		scrn,
+  patch_t*	patch,
+  int		col )
+{
+    column_t*	column;
+    byte*	source;
+    int		count;
+    int		top;
+    int		py;
+    int		x1;
+
+    x1 = screenleft + x*screenscale;
+    if (x1 < 0 || x1 + screenscale > SCREENWIDTH)
+	return;
+
+    column = (column_t *)((byte *)patch + LONG(patch->columnofs[col]));
+    while (column->topdelta != 0xff )
+    {
+	source = (byte *)column + 3;
+	top = (y + column->topdelta) * screenscale;
+	for (count = column->length ; count>0 ; count--, source++)
+	{
+	    for (py=top ; py<top+screenscale ; py++)
+		if (py >= 0 && py < SCREENHEIGHT)
+		    memset (screens[scrn] + py*SCREENWIDTH + x1,
+			    *source, screenscale);
+	    top += screenscale;
+	}
+	column = (column_t *)(  (byte *)column + column->length + 4 );
+    }
+}
+
+//
 // V_DrawPatch
 // Masks a column based masked pic to the screen. 
+// Coordinates are on the original 320x200 screen; parts of a patch
+// that hang off it are drawn into the widescreen margins if there are
+// any, and clipped at the framebuffer's edges.
 //
 void
 V_DrawPatch
@@ -207,61 +362,19 @@ V_DrawPatch
   int		scrn,
   patch_t*	patch ) 
 { 
-
-    int		count;
-    int		col; 
-    column_t*	column; 
-    byte*	desttop;
-    byte*	dest;
-    byte*	source; 
-    int		w; 
-	 
     y -= SHORT(patch->topoffset); 
     x -= SHORT(patch->leftoffset); 
-#ifdef RANGECHECK 
-    if (x<0
-	||x+SHORT(patch->width) >SCREENWIDTH
-	|| y<0
-	|| y+SHORT(patch->height)>SCREENHEIGHT 
-	|| (unsigned)scrn>4)
-    {
-      fprintf( stderr, "Patch at %d,%d exceeds LFB\n", x,y );
-      // No I_Error abort - what is up with TNT.WAD?
-      fprintf( stderr, "V_DrawPatch: bad patch (ignored)\n");
-      return;
-    }
-#endif 
- 
+
+    if ((unsigned)scrn>4)
+	I_Error ("V_DrawPatch: bad screen %d", scrn);
+
     if (!scrn)
 	V_MarkRect (x, y, SHORT(patch->width), SHORT(patch->height)); 
 
-    col = 0; 
-    desttop = screens[scrn]+y*SCREENWIDTH+x; 
-	 
-    w = SHORT(patch->width); 
-
-    for ( ; col<w ; x++, col++, desttop++)
-    { 
-	column = (column_t *)((byte *)patch + LONG(patch->columnofs[col])); 
- 
-	// step through the posts in a column 
-	while (column->topdelta != 0xff ) 
-	{ 
-	    source = (byte *)column + 3; 
-	    dest = desttop + column->topdelta*SCREENWIDTH; 
-	    count = column->length; 
-			 
-	    while (count--) 
-	    { 
-		*dest = *source++; 
-		dest += SCREENWIDTH; 
-	    } 
-	    column = (column_t *)(  (byte *)column + column->length 
-				    + 4 ); 
-	} 
-    }			 
+    DrawPatchColumns (screenleft + x*screenscale, y*screenscale,
+		      scrn, patch, false);
 } 
- 
+
 //
 // V_DrawPatchFlipped 
 // Masks a column based masked pic to the screen.
@@ -274,60 +387,18 @@ V_DrawPatchFlipped
   int		scrn,
   patch_t*	patch ) 
 { 
-
-    int		count;
-    int		col; 
-    column_t*	column; 
-    byte*	desttop;
-    byte*	dest;
-    byte*	source; 
-    int		w; 
-	 
     y -= SHORT(patch->topoffset); 
     x -= SHORT(patch->leftoffset); 
-#ifdef RANGECHECK 
-    if (x<0
-	||x+SHORT(patch->width) >SCREENWIDTH
-	|| y<0
-	|| y+SHORT(patch->height)>SCREENHEIGHT 
-	|| (unsigned)scrn>4)
-    {
-      fprintf( stderr, "Patch origin %d,%d exceeds LFB\n", x,y );
-      I_Error ("Bad V_DrawPatch in V_DrawPatchFlipped");
-    }
-#endif 
- 
+
+    if ((unsigned)scrn>4)
+	I_Error ("V_DrawPatchFlipped: bad screen %d", scrn);
+
     if (!scrn)
 	V_MarkRect (x, y, SHORT(patch->width), SHORT(patch->height)); 
 
-    col = 0; 
-    desttop = screens[scrn]+y*SCREENWIDTH+x; 
-	 
-    w = SHORT(patch->width); 
-
-    for ( ; col<w ; x++, col++, desttop++) 
-    { 
-	column = (column_t *)((byte *)patch + LONG(patch->columnofs[w-1-col])); 
- 
-	// step through the posts in a column 
-	while (column->topdelta != 0xff ) 
-	{ 
-	    source = (byte *)column + 3; 
-	    dest = desttop + column->topdelta*SCREENWIDTH; 
-	    count = column->length; 
-			 
-	    while (count--) 
-	    { 
-		*dest = *source++; 
-		dest += SCREENWIDTH; 
-	    } 
-	    column = (column_t *)(  (byte *)column + column->length 
-				    + 4 ); 
-	} 
-    }			 
+    DrawPatchColumns (screenleft + x*screenscale, y*screenscale,
+		      scrn, patch, true);
 } 
- 
-
 
 //
 // V_DrawPatchDirect
@@ -341,65 +412,31 @@ V_DrawPatchDirect
   patch_t*	patch ) 
 {
     V_DrawPatch (x,y,scrn, patch); 
+}
 
-    /*
-    int		count;
-    int		col; 
-    column_t*	column; 
-    byte*	desttop;
-    byte*	dest;
-    byte*	source; 
-    int		w; 
-	 
-    y -= SHORT(patch->topoffset); 
-    x -= SHORT(patch->leftoffset); 
-
-#ifdef RANGECHECK 
-    if (x<0
-	||x+SHORT(patch->width) >SCREENWIDTH
-	|| y<0
-	|| y+SHORT(patch->height)>SCREENHEIGHT 
-	|| (unsigned)scrn>4)
-    {
-	I_Error ("Bad V_DrawPatchDirect");
-    }
-#endif 
- 
-    //	V_MarkRect (x, y, SHORT(patch->width), SHORT(patch->height)); 
-    desttop = destscreen + y*SCREENWIDTH/4 + (x>>2); 
-	 
-    w = SHORT(patch->width); 
-    for ( col = 0 ; col<w ; col++) 
-    { 
-	outp (SC_INDEX+1,1<<(x&3)); 
-	column = (column_t *)((byte *)patch + LONG(patch->columnofs[col])); 
- 
-	// step through the posts in a column 
-	 
-	while (column->topdelta != 0xff ) 
-	{ 
-	    source = (byte *)column + 3; 
-	    dest = desttop + column->topdelta*SCREENWIDTH/4; 
-	    count = column->length; 
- 
-	    while (count--) 
-	    { 
-		*dest = *source++; 
-		dest += SCREENWIDTH/4; 
-	    } 
-	    column = (column_t *)(  (byte *)column + column->length 
-				    + 4 ); 
-	} 
-	if ( ((++x)&3) == 0 ) 
-	    desttop++;	// go to next byte, not next plane 
-    }*/ 
-} 
- 
+//
+// V_DrawPatchFB
+// Like V_DrawPatch, but at a framebuffer position (the patch is still
+// scaled up). For decorations placed around things that are laid out
+// in framebuffer pixels, such as the view border.
+//
+void
+V_DrawPatchFB
+( int		x,
+  int		y,
+  int		scrn,
+  patch_t*	patch ) 
+{
+    x -= SHORT(patch->leftoffset)*screenscale;
+    y -= SHORT(patch->topoffset)*screenscale;
+    DrawPatchColumns (x, y, scrn, patch, false);
+}
 
 
 //
 // V_DrawBlock
 // Draw a linear block of pixels into the view buffer.
+// Framebuffer coordinates.
 //
 void
 V_DrawBlock
@@ -423,8 +460,6 @@ V_DrawBlock
     }
 #endif 
  
-    V_MarkRect (x, y, width, height); 
- 
     dest = screens[scrn] + y*SCREENWIDTH+x; 
 
     while (height--) 
@@ -440,6 +475,7 @@ V_DrawBlock
 //
 // V_GetBlock
 // Gets a linear block of pixels from the view buffer.
+// Framebuffer coordinates.
 //
 void
 V_GetBlock
@@ -474,6 +510,123 @@ V_GetBlock
 } 
 
 
+//
+// V_FillRect
+// Fills a framebuffer rectangle with one color, clipped.
+//
+void
+V_FillRect
+( int		x,
+  int		y,
+  int		width,
+  int		height,
+  int		scrn,
+  int		color )
+{
+    byte*	dest;
+
+    if (x < 0) { width += x; x = 0; }
+    if (y < 0) { height += y; y = 0; }
+    if (x + width > SCREENWIDTH) width = SCREENWIDTH - x;
+    if (y + height > SCREENHEIGHT) height = SCREENHEIGHT - y;
+    if (width <= 0 || height <= 0)
+	return;
+
+    dest = screens[scrn] + y*SCREENWIDTH + x;
+    for ( ; height>0 ; height--, dest += SCREENWIDTH)
+	memset (dest, color, width);
+}
+
+//
+// V_TileFlat
+// Fills a framebuffer rectangle with a 64x64 flat, each of its pixels
+// scaled up like patches are, tiled from the framebuffer's origin.
+//
+void
+V_TileFlat
+( int		x,
+  int		y,
+  int		width,
+  int		height,
+  int		scrn,
+  byte*		flat )
+{
+    int		px;
+    int		py;
+    int		x2;
+    int		y2;
+    byte*	dest;
+    byte*	row;
+
+    x2 = x + width;
+    y2 = y + height;
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if (x2 > SCREENWIDTH) x2 = SCREENWIDTH;
+    if (y2 > SCREENHEIGHT) y2 = SCREENHEIGHT;
+
+    for (py=y ; py<y2 ; py++)
+    {
+	dest = screens[scrn] + py*SCREENWIDTH;
+	row = flat + ((py/screenscale) & 63) * 64;
+	for (px=x ; px<x2 ; px++)
+	    dest[px] = row[(px/screenscale) & 63];
+    }
+}
+
+//
+// V_ClearMargins
+// Blacks out the widescreen margins either side of the original
+// screen, which full screen pictures don't cover.
+//
+void V_ClearMargins (int scrn)
+{
+    if (!screenleft)
+	return;
+
+    V_FillRect (0, 0, screenleft, SCREENHEIGHT, scrn, 0);
+    V_FillRect (screenleft + ORIGWIDTH*screenscale, 0,
+		SCREENWIDTH - screenleft - ORIGWIDTH*screenscale,
+		SCREENHEIGHT, scrn, 0);
+}
+
+
+
+//
+// V_SetResolution
+// Picks the framebuffer size: scale times the original height, and as
+// wide as needed to fill the shape of the window (or 4:3, when not
+// widescreen).
+//
+int	screenwidth = ORIGWIDTH;
+int	screenheight = ORIGHEIGHT;
+int	screenscale = 1;
+int	screenleft = 0;
+
+void V_SetResolution (int scale, double aspect)
+{
+    int		width;
+
+    if (scale < 1)
+	scale = 1;
+    if (scale > MAXSCREENSCALE)
+	scale = MAXSCREENSCALE;
+
+    // aspect is the shape the framebuffer is to be shown at;
+    // it is never narrower than the original screen.
+    width = (int)(ORIGHEIGHT*scale * aspect + 0.5);
+    if (width < ORIGWIDTH*scale)
+	width = ORIGWIDTH*scale;
+    if (width > MAXWIDTH)
+	width = MAXWIDTH;
+    // Keep it even so the view centers exactly.
+    width &= ~1;
+
+    screenscale = scale;
+    screenwidth = width;
+    screenheight = ORIGHEIGHT*scale;
+    screenleft = (screenwidth - ORIGWIDTH*scale) / 2;
+}
 
 
 //
@@ -482,12 +635,13 @@ V_GetBlock
 void V_Init (void) 
 { 
     int		i;
-    byte*	base;
+    static byte* base;
 		
-    // stick these in low dos memory on PCs
+    if (base)
+	free (base);
 
-    base = I_AllocLow (SCREENWIDTH*SCREENHEIGHT*4);
+    base = I_AllocLow (SCREENWIDTH*SCREENHEIGHT*5);
 
-    for (i=0 ; i<4 ; i++)
+    for (i=0 ; i<5 ; i++)
 	screens[i] = base + i*SCREENWIDTH*SCREENHEIGHT;
 }

@@ -47,28 +47,6 @@ static byte*	wipe_scr_end;
 static byte*	wipe_scr;
 
 
-void
-wipe_shittyColMajorXform
-( short*	array,
-  int		width,
-  int		height )
-{
-    int		x;
-    int		y;
-    short*	dest;
-
-    dest = (short*) Z_Malloc(width*height*2, PU_STATIC, 0);
-
-    for(y=0;y<height;y++)
-	for(x=0;x<width;x++)
-	    dest[x*height+y] = array[y*width+x];
-
-    memcpy(array, dest, width*height*2);
-
-    Z_Free(dest);
-
-}
-
 int
 wipe_initColorXForm
 ( int	width,
@@ -135,7 +113,14 @@ wipe_exitColorXForm
 }
 
 
-static int*	y;
+//
+// The melt works on the original screen's 160 two pixel wide columns
+// and 200 rows, scaled to the framebuffer, so it looks the same at
+// any resolution. Widescreen framebuffers get extra columns.
+//
+static int*	ypos;
+static int	meltcols;
+static int	meltcolwidth;
 
 int
 wipe_initMelt
@@ -148,21 +133,19 @@ wipe_initMelt
     // copy start screen to main screen
     memcpy(wipe_scr, wipe_scr_start, width*height);
     
-    // makes this wipe faster (in theory)
-    // to have stuff in column-major format
-    wipe_shittyColMajorXform((short*)wipe_scr_start, width/2, height);
-    wipe_shittyColMajorXform((short*)wipe_scr_end, width/2, height);
-    
+    meltcolwidth = 2*screenscale;
+    meltcols = (width + meltcolwidth-1) / meltcolwidth;
+
     // setup initial column positions
     // (y<0 => not ready to scroll yet)
-    y = (int *) Z_Malloc(width*sizeof(int), PU_STATIC, 0);
-    y[0] = -(M_Random()%16);
-    for (i=1;i<width;i++)
+    ypos = (int *) Z_Malloc(meltcols*sizeof(int), PU_STATIC, 0);
+    ypos[0] = -(M_Random()%16);
+    for (i=1;i<meltcols;i++)
     {
 	r = (M_Random()%3) - 1;
-	y[i] = y[i-1] + r;
-	if (y[i] > 0) y[i] = 0;
-	else if (y[i] == -16) y[i] = -15;
+	ypos[i] = ypos[i-1] + r;
+	if (ypos[i] > 0) ypos[i] = 0;
+	else if (ypos[i] == -16) ypos[i] = -15;
     }
 
     return 0;
@@ -175,48 +158,49 @@ wipe_doMelt
   int	ticks )
 {
     int		i;
-    int		j;
     int		dy;
-    int		idx;
-    
-    short*	s;
-    short*	d;
+    int		x1;
+    int		w;
+    int		row;
+    int		split;
     boolean	done = true;
-
-    width/=2;
 
     while (ticks--)
     {
-	for (i=0;i<width;i++)
+	for (i=0;i<meltcols;i++)
 	{
-	    if (y[i]<0)
+	    if (ypos[i]<0)
 	    {
-		y[i]++; done = false;
+		ypos[i]++; done = false;
 	    }
-	    else if (y[i] < height)
+	    else if (ypos[i] < ORIGHEIGHT)
 	    {
-		dy = (y[i] < 16) ? y[i]+1 : 8;
-		if (y[i]+dy >= height) dy = height - y[i];
-		s = &((short *)wipe_scr_end)[i*height+y[i]];
-		d = &((short *)wipe_scr)[y[i]*width+i];
-		idx = 0;
-		for (j=dy;j;j--)
-		{
-		    d[idx] = *(s++);
-		    idx += width;
-		}
-		y[i] += dy;
-		s = &((short *)wipe_scr_start)[i*height];
-		d = &((short *)wipe_scr)[y[i]*width+i];
-		idx = 0;
-		for (j=height-y[i];j;j--)
-		{
-		    d[idx] = *(s++);
-		    idx += width;
-		}
+		dy = (ypos[i] < 16) ? ypos[i]+1 : 8;
+		if (ypos[i]+dy >= ORIGHEIGHT) dy = ORIGHEIGHT - ypos[i];
+		ypos[i] += dy;
 		done = false;
 	    }
 	}
+    }
+
+    // The new screen shows above each column's edge, the old one
+    // slides down below it.
+    for (i=0;i<meltcols;i++)
+    {
+	x1 = i*meltcolwidth;
+	w = meltcolwidth;
+	if (x1 + w > width)
+	    w = width - x1;
+	split = (ypos[i] > 0 ? ypos[i] : 0) * screenscale;
+	if (split > height)
+	    split = height;
+
+	for (row=0 ; row<split ; row++)
+	    memcpy (wipe_scr + row*width + x1,
+		    wipe_scr_end + row*width + x1, w);
+	for (row=split ; row<height ; row++)
+	    memcpy (wipe_scr + row*width + x1,
+		    wipe_scr_start + (row-split)*width + x1, w);
     }
 
     return done;
@@ -229,7 +213,7 @@ wipe_exitMelt
   int	height,
   int	ticks )
 {
-    Z_Free(y);
+    Z_Free(ypos);
     return 0;
 }
 

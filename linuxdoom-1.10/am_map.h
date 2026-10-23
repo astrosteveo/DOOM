@@ -42,6 +42,9 @@ void AM_Drawer (void);
 // if the level is completed while it is up.
 void AM_Stop (void);
 
+// Called when the framebuffer changes size.
+void AM_Resize (void);
+
 
 
 #endif

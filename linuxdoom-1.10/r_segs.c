@@ -78,16 +78,18 @@ int		worldbottom;
 int		worldhigh;
 int		worldlow;
 
-fixed_t		pixhigh;
-fixed_t		pixlow;
-fixed_t		pixhighstep;
-fixed_t		pixlowstep;
+// Screen rows of the wall edges, in 1/HEIGHTUNIT pixels. 64 bits wide:
+// at high resolutions tall walls up close overflow 32.
+int64_t		pixhigh;
+int64_t		pixlow;
+int64_t		pixhighstep;
+int64_t		pixlowstep;
 
-fixed_t		topfrac;
-fixed_t		topstep;
+int64_t		topfrac;
+int64_t		topstep;
 
-fixed_t		bottomfrac;
-fixed_t		bottomstep;
+int64_t		bottomfrac;
+int64_t		bottomstep;
 
 
 lighttable_t**	walllights;
@@ -166,7 +168,7 @@ R_RenderMaskedSegRange
 	{
 	    if (!fixedcolormap)
 	    {
-		index = spryscale>>LIGHTSCALESHIFT;
+		index = FixedMul (spryscale, lightscalenorm)>>LIGHTSCALESHIFT;
 
 		if (index >=  MAXLIGHTSCALE )
 		    index = MAXLIGHTSCALE-1;
@@ -174,7 +176,7 @@ R_RenderMaskedSegRange
 		dc_colormap = walllights[index];
 	    }
 			
-	    sprtopscreen = centeryfrac - FixedMul(dc_texturemid, spryscale);
+	    sprtopscreen = centeryfrac - (((int64_t)dc_texturemid * spryscale) >> FRACBITS);
 	    dc_iscale = 0xffffffffu / (unsigned)spryscale;
 	    
 	    // draw the texture
@@ -266,7 +268,7 @@ void R_RenderSegLoop (void)
 	    texturecolumn = rw_offset-FixedMul(finetangent[angle],rw_distance);
 	    texturecolumn >>= FRACBITS;
 	    // calculate lighting
-	    index = rw_scale>>LIGHTSCALESHIFT;
+	    index = FixedMul (rw_scale, lightscalenorm)>>LIGHTSCALESHIFT;
 
 	    if (index >=  MAXLIGHTSCALE )
 		index = MAXLIGHTSCALE-1;
@@ -680,11 +682,11 @@ R_StoreWallRange
     worldtop >>= 4;
     worldbottom >>= 4;
 	
-    topstep = -FixedMul (rw_scalestep, worldtop);
-    topfrac = (centeryfrac>>4) - FixedMul (worldtop, rw_scale);
+    topstep = -(((int64_t)rw_scalestep * worldtop) >> FRACBITS);
+    topfrac = (centeryfrac>>4) - (((int64_t)worldtop * rw_scale) >> FRACBITS);
 
-    bottomstep = -FixedMul (rw_scalestep,worldbottom);
-    bottomfrac = (centeryfrac>>4) - FixedMul (worldbottom, rw_scale);
+    bottomstep = -(((int64_t)rw_scalestep * worldbottom) >> FRACBITS);
+    bottomfrac = (centeryfrac>>4) - (((int64_t)worldbottom * rw_scale) >> FRACBITS);
 	
     if (backsector)
     {	
@@ -693,14 +695,14 @@ R_StoreWallRange
 
 	if (worldhigh < worldtop)
 	{
-	    pixhigh = (centeryfrac>>4) - FixedMul (worldhigh, rw_scale);
-	    pixhighstep = -FixedMul (rw_scalestep,worldhigh);
+	    pixhigh = (centeryfrac>>4) - (((int64_t)worldhigh * rw_scale) >> FRACBITS);
+	    pixhighstep = -(((int64_t)rw_scalestep * worldhigh) >> FRACBITS);
 	}
 	
 	if (worldlow > worldbottom)
 	{
-	    pixlow = (centeryfrac>>4) - FixedMul (worldlow, rw_scale);
-	    pixlowstep = -FixedMul (rw_scalestep,worldlow);
+	    pixlow = (centeryfrac>>4) - (((int64_t)worldlow * rw_scale) >> FRACBITS);
+	    pixlowstep = -(((int64_t)rw_scalestep * worldlow) >> FRACBITS);
 	}
     }
     

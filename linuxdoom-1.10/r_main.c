@@ -65,6 +65,15 @@ fixed_t			centerxfrac;
 fixed_t			centeryfrac;
 fixed_t			projection;
 
+// The width the view would have at the original 90 degree field of
+// view, in full detail pixels. Wider (widescreen) views see more to
+// the sides; the scale of everything follows this.
+int			projectionwidth;
+
+// Scales scale (pixels per world unit) to what the original 320 pixel
+// view would have, for indexing the scalelight tables.
+fixed_t			lightscalenorm;
+
 // just for profiling purposes
 int			framecount;	
 
@@ -100,7 +109,7 @@ int			viewangletox[FINEANGLES/2];
 // The xtoviewangleangle[] table maps a screen pixel
 // to the lowest viewangle that maps back to x ranges
 // from clipangle to -clipangle.
-angle_t			xtoviewangle[SCREENWIDTH+1];
+angle_t			xtoviewangle[MAXWIDTH+1];
 
 
 // UNUSED.
@@ -490,13 +499,13 @@ fixed_t R_ScaleFromGlobalAngle (angle_t visangle)
     {
 	scale = FixedDiv (num, den);
 
-	if (scale > 64*FRACUNIT)
-	    scale = 64*FRACUNIT;
+	if (scale > 64*FRACUNIT*screenscale)
+	    scale = 64*FRACUNIT*screenscale;
 	else if (scale < 256)
 	    scale = 256;
     }
     else
-	scale = 64*FRACUNIT;
+	scale = 64*FRACUNIT*screenscale;
 	
     return scale;
 }
@@ -553,8 +562,8 @@ void R_InitTextureMapping (void)
     //  after the view angle.
     //
     // Calc focallength
-    //  so FIELDOFVIEW angles covers SCREENWIDTH.
-    focallength = FixedDiv (centerxfrac,
+    //  so FIELDOFVIEW angles covers projectionwidth.
+    focallength = FixedDiv (projection,
 			    finetangent[FINEANGLES/4+FIELDOFVIEW/2] );
 	
     for (i=0 ; i<FINEANGLES/2 ; i++)
@@ -626,7 +635,7 @@ void R_InitLightTables (void)
 	startmap = ((LIGHTLEVELS-1-i)*2)*NUMCOLORMAPS/LIGHTLEVELS;
 	for (j=0 ; j<MAXLIGHTZ ; j++)
 	{
-	    scale = FixedDiv ((SCREENWIDTH/2*FRACUNIT), (j+1)<<LIGHTZSHIFT);
+	    scale = FixedDiv ((ORIGWIDTH/2*FRACUNIT), (j+1)<<LIGHTZSHIFT);
 	    scale >>= LIGHTSCALESHIFT;
 	    level = startmap - scale/DISTMAP;
 	    
@@ -679,15 +688,22 @@ void R_ExecuteSetViewSize (void)
 
     setsizeneeded = false;
 
+    // The original sizes, scaled up; widescreen views are wider still
+    // in proportion to the framebuffer.
     if (setblocks == 11)
     {
 	scaledviewwidth = SCREENWIDTH;
 	viewheight = SCREENHEIGHT;
+	projectionwidth = ORIGWIDTH*screenscale;
     }
     else
     {
-	scaledviewwidth = setblocks*32;
-	viewheight = (setblocks*168/10)&~7;
+	projectionwidth = setblocks*32*screenscale;
+	viewheight = ((setblocks*168/10)&~7)*screenscale;
+	if (setblocks == 10)
+	    scaledviewwidth = SCREENWIDTH;
+	else
+	    scaledviewwidth = (setblocks*32*SCREENWIDTH/ORIGWIDTH) & ~1;
     }
     
     detailshift = setdetail;
@@ -697,7 +713,8 @@ void R_ExecuteSetViewSize (void)
     centerx = viewwidth/2;
     centerxfrac = centerx<<FRACBITS;
     centeryfrac = centery<<FRACBITS;
-    projection = centerxfrac;
+    projection = ((projectionwidth>>detailshift)/2)<<FRACBITS;
+    lightscalenorm = FRACUNIT*ORIGWIDTH/projectionwidth;
 
     if (!detailshift)
     {
@@ -719,8 +736,8 @@ void R_ExecuteSetViewSize (void)
     R_InitTextureMapping ();
     
     // psprite scales
-    pspritescale = FRACUNIT*viewwidth/SCREENWIDTH;
-    pspriteiscale = FRACUNIT*SCREENWIDTH/viewwidth;
+    pspritescale = FRACUNIT*(projectionwidth>>detailshift)/ORIGWIDTH;
+    pspriteiscale = FRACUNIT*ORIGWIDTH/(projectionwidth>>detailshift);
     
     // thing clipping
     for (i=0 ; i<viewwidth ; i++)
@@ -731,7 +748,7 @@ void R_ExecuteSetViewSize (void)
     {
 	dy = ((i-viewheight/2)<<FRACBITS)+FRACUNIT/2;
 	dy = abs(dy);
-	yslope[i] = FixedDiv ( (viewwidth<<detailshift)/2*FRACUNIT, dy);
+	yslope[i] = FixedDiv ( projectionwidth/2*FRACUNIT, dy);
     }
 	
     for (i=0 ; i<viewwidth ; i++)
@@ -747,7 +764,7 @@ void R_ExecuteSetViewSize (void)
 	startmap = ((LIGHTLEVELS-1-i)*2)*NUMCOLORMAPS/LIGHTLEVELS;
 	for (j=0 ; j<MAXLIGHTSCALE ; j++)
 	{
-	    level = startmap - j*SCREENWIDTH/(viewwidth<<detailshift)/DISTMAP;
+	    level = startmap - j/DISTMAP;
 	    
 	    if (level < 0)
 		level = 0;

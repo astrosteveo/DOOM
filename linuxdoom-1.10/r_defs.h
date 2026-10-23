@@ -52,7 +52,9 @@
 #define SIL_TOP			2
 #define SIL_BOTH		3
 
-#define MAXDRAWSEGS		256
+// The original limits of 256 drawsegs, 128 visplanes and 128 sprites
+// were sized for a 320 pixel wide view; they only affect drawing.
+#define MAXDRAWSEGS		8192
 
 
 
@@ -465,19 +467,14 @@ typedef struct
   int			minx;
   int			maxx;
   
-  // leave pads for [minx-1]/[maxx+1]
-  
-  byte		pad1;
-  // Here lies the rub for all
-  //  dynamic resize/change of resolution.
-  byte		top[SCREENWIDTH];
-  byte		pad2;
-  byte		pad3;
-  // See above.
-  byte		bottom[SCREENWIDTH];
-  byte		pad4;
+  // One entry per column, sized to the framebuffer, with room
+  // for [minx-1]/[maxx+1]. VP_EMPTY marks an unused column.
+  unsigned short*	top;
+  unsigned short*	bottom;
 
 } visplane_t;
+
+#define VP_EMPTY	0xffff
 
 
 

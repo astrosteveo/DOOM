@@ -27,11 +27,10 @@
 #include "doomtype.h"
 #include "d_event.h"
 
-// Size of statusbar.
-// Now sensitive for scaling.
-#define ST_HEIGHT	32*SCREEN_MUL
-#define ST_WIDTH	SCREENWIDTH
-#define ST_Y		(SCREENHEIGHT - ST_HEIGHT)
+// Size of statusbar, in original screen coordinates.
+#define ST_HEIGHT	32
+#define ST_WIDTH	ORIGWIDTH
+#define ST_Y		(ORIGHEIGHT - ST_HEIGHT)
 
 
 //

@@ -36,7 +36,7 @@
 // VIDEO
 //
 
-#define CENTERY			(SCREENHEIGHT/2)
+#define CENTERY			(ORIGHEIGHT/2)
 
 
 // Screen 0 is the screen updated by I_Update screen.
@@ -53,8 +53,24 @@ extern	int	usegamma;
 
 
 
+// Chooses the framebuffer size; see doomdef.h.
+// aspect is the width:height of the framebuffer in its own pixels.
+void V_SetResolution (int scale, double aspect);
+
 // Allocates buffer screens, call before R_Init.
+// Called again after the resolution changes.
 void V_Init (void);
+
+// Unlike the patch drawers, these take framebuffer coordinates.
+void V_DrawPatchFB (int x, int y, int scrn, patch_t* patch);
+
+// One column of a patch, at original screen coordinates.
+void V_DrawPatchColumn (int x, int y, int scrn, patch_t* patch, int col);
+void V_CopyRectFB (int srcx, int srcy, int srcscrn, int width, int height,
+		   int destx, int desty, int destscrn);
+void V_FillRect (int x, int y, int width, int height, int scrn, int color);
+void V_TileFlat (int x, int y, int width, int height, int scrn, byte* flat);
+void V_ClearMargins (int scrn);
 
 
 void
@@ -70,6 +86,13 @@ V_CopyRect
 
 void
 V_DrawPatch
+( int		x,
+  int		y,
+  int		scrn,
+  patch_t*	patch);
+
+void
+V_DrawPatchFlipped
 ( int		x,
   int		y,
   int		scrn,

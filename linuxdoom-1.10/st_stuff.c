@@ -30,6 +30,7 @@ rcsid[] = "$Id: st_stuff.c,v 1.6 1997/02/03 22:45:13 b1 Exp $";
 #include <stdio.h>
 
 #include "i_system.h"
+#include "m_swap.h"
 #include "i_video.h"
 #include "z_zone.h"
 #include "m_random.h"
@@ -260,7 +261,7 @@ rcsid[] = "$Id: st_stuff.c,v 1.6 1997/02/03 22:45:13 b1 Exp $";
     (strlen(mapnames[(gameepisode-1)*9+(gamemap-1)]))
 
 #define ST_MAPTITLEX \
-    (SCREENWIDTH - ST_MAPWIDTH * ST_CHATFONTWIDTH)
+    (ORIGWIDTH - ST_MAPWIDTH * ST_CHATFONTWIDTH)
 
 #define ST_MAPTITLEY		0
 #define ST_MAPHEIGHT		1
@@ -501,12 +502,23 @@ void ST_refreshBackground(void)
 
     if (st_statusbaron)
     {
-	V_DrawPatch(ST_X, 0, BG, sbar);
+	// Widescreen: the bar is flanked by the view border's flat.
+	if (screenleft)
+	    V_TileFlat (0, 0, SCREENWIDTH, ST_HEIGHT*screenscale, BG,
+			W_CacheLumpName (gamemode == commercial
+					 ? "GRNROCK" : "FLOOR7_2", PU_CACHE));
+
+	// Wider bars, as some newer IWADs have, are centered.
+	if (SHORT(sbar->width) > ST_WIDTH)
+	    V_DrawPatch((ST_WIDTH - SHORT(sbar->width))/2, 0, BG, sbar);
+	else
+	    V_DrawPatch(ST_X, 0, BG, sbar);
 
 	if (netgame)
 	    V_DrawPatch(ST_FX, 0, BG, faceback);
 
-	V_CopyRect(ST_X, 0, BG, ST_WIDTH, ST_HEIGHT, ST_X, ST_Y, FG);
+	V_CopyRectFB(0, 0, BG, SCREENWIDTH, ST_HEIGHT*screenscale,
+		     0, ST_Y*screenscale, FG);
     }
 
 }
@@ -1467,5 +1479,5 @@ void ST_Init (void)
 {
     veryfirsttime = 0;
     ST_loadData();
-    screens[4] = (byte *) Z_Malloc(ST_WIDTH*ST_HEIGHT, PU_STATIC, 0);
+    // screens[4], the background, comes from V_Init.
 }

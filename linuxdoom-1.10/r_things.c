@@ -78,8 +78,8 @@ lighttable_t**	spritelights;
 
 // constant arrays
 //  used for psprite clipping and initializing clipping
-short		negonearray[SCREENWIDTH];
-short		screenheightarray[SCREENWIDTH];
+short		negonearray[MAXWIDTH];
+short		screenheightarray[MAXWIDTH];
 
 
 //
@@ -300,7 +300,7 @@ void R_InitSprites (char** namelist)
 {
     int		i;
 	
-    for (i=0 ; i<SCREENWIDTH ; i++)
+    for (i=0 ; i<MAXWIDTH ; i++)
     {
 	negonearray[i] = -1;
     }
@@ -346,12 +346,12 @@ short*		mfloorclip;
 short*		mceilingclip;
 
 fixed_t		spryscale;
-fixed_t		sprtopscreen;
+int64_t		sprtopscreen;	// 64 bits for the same reason as topfrac
 
 void R_DrawMaskedColumn (column_t* column)
 {
-    int		topscreen;
-    int 	bottomscreen;
+    int64_t	topscreen;
+    int64_t 	bottomscreen;
     fixed_t	basetexturemid;
 	
     basetexturemid = dc_texturemid;
@@ -360,8 +360,8 @@ void R_DrawMaskedColumn (column_t* column)
     {
 	// calculate unclipped screen coordinates
 	//  for post
-	topscreen = sprtopscreen + spryscale*column->topdelta;
-	bottomscreen = topscreen + spryscale*column->length;
+	topscreen = sprtopscreen + (int64_t)spryscale*column->topdelta;
+	bottomscreen = topscreen + (int64_t)spryscale*column->length;
 
 	dc_yl = (topscreen+FRACUNIT-1)>>FRACBITS;
 	dc_yh = (bottomscreen-1)>>FRACBITS;
@@ -425,7 +425,7 @@ R_DrawVisSprite
     dc_texturemid = vis->texturemid;
     frac = vis->startfrac;
     spryscale = vis->scale;
-    sprtopscreen = centeryfrac - FixedMul(dc_texturemid,spryscale);
+    sprtopscreen = centeryfrac - (((int64_t)dc_texturemid * spryscale) >> FRACBITS);
 	
     for (dc_x=vis->x1 ; dc_x<=vis->x2 ; dc_x++, frac += vis->xiscale)
     {
@@ -478,6 +478,8 @@ void R_ProjectSprite (mobj_t* thing)
     
     angle_t		ang;
     fixed_t		iscale;
+
+    int64_t		edge;
     
     // transform the origin point
     tr_x = thing->x - viewx;
@@ -532,19 +534,22 @@ void R_ProjectSprite (mobj_t* thing)
     }
     
     // calculate edges of the shape
+    // (In 64 bits: close sprites at high resolutions overflow 32.)
     tx -= spriteoffset[lump];	
-    x1 = (centerxfrac + FixedMul (tx,xscale) ) >>FRACBITS;
+    edge = (centerxfrac + (((int64_t)tx * xscale) >> FRACBITS)) >> FRACBITS;
 
     // off the right side?
-    if (x1 > viewwidth)
+    if (edge > viewwidth)
 	return;
+    x1 = (int)edge;
     
     tx +=  spritewidth[lump];
-    x2 = ((centerxfrac + FixedMul (tx,xscale) ) >>FRACBITS) - 1;
+    edge = ((centerxfrac + (((int64_t)tx * xscale) >> FRACBITS)) >> FRACBITS) - 1;
 
     // off the left side
-    if (x2 < 0)
+    if (edge < 0)
 	return;
+    x2 = edge >= viewwidth ? viewwidth : (int)edge;
     
     // store information in a vissprite
     vis = R_NewVisSprite ();
@@ -594,7 +599,7 @@ void R_ProjectSprite (mobj_t* thing)
     else
     {
 	// diminished light
-	index = xscale>>(LIGHTSCALESHIFT-detailshift);
+	index = FixedMul (xscale, lightscalenorm)>>(LIGHTSCALESHIFT-detailshift);
 
 	if (index >= MAXLIGHTSCALE) 
 	    index = MAXLIGHTSCALE-1;
@@ -842,8 +847,8 @@ void R_SortVisSprites (void)
 void R_DrawSprite (vissprite_t* spr)
 {
     drawseg_t*		ds;
-    short		clipbot[SCREENWIDTH];
-    short		cliptop[SCREENWIDTH];
+    short		clipbot[MAXWIDTH];
+    short		cliptop[MAXWIDTH];
     int			x;
     int			r1;
     int			r2;
