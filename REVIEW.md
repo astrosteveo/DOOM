@@ -31,7 +31,8 @@ skip:                  # never reviewed, except files on the always-High list (s
 
 ## What Important means here
 - A change touches game simulation (anything a demo replays), so a v1.9 demo stops matching the original code tic
-  for tic under `-hashlog`. Only drawing, sound, input plumbing and the platform layer may differ.
+  for tic under `-hashlog`. Only drawing, sound, input plumbing and the platform layer may differ. This holds for
+  the Godot build as much as the SDL one: Godot reads the game's state and never writes it.
 - Savegames stop reading or writing in the DOS v1.9 layout (`p_saveg.c`), or an old save loads wrong.
 - A 64-bit bug: a pointer kept in an int, a size computed as count*4, or a fixed-point product that overflows.
 - At a resolution other than 320x200 the renderer or a 2D drawer reads or writes past a buffer, or crashes.

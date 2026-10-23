@@ -1,14 +1,18 @@
 # DOOM
 
-id Software's 1997 linuxdoom-1.10 release, ported to 64-bit Linux on SDL3 and modernized while still playing
-v1.9 demos exactly as the original code does.
+id Software's 1997 linuxdoom-1.10 release, ported to 64-bit Linux on SDL3, and on its way to Godot: the original
+simulation in C, presented by Godot as a modern 3D game with custom textures and models. The plan is in
+`docs/godot.md`.
 
 ## Goals
-- Run on a current Linux system: SDL3 video, input and sound, OPL3 music, any resolution and widescreen.
-- Stay vanilla compatible: demos replay tic for tic and savegames keep the DOS v1.9 layout.
+- A Godot front end (lighting, materials, models, custom content) over the unchanged 1997 simulation, loaded as a
+  GDExtension.
+- Stay vanilla compatible: demos replay tic for tic and savegames keep the DOS v1.9 layout, in both builds.
+- Keep the SDL3 build working: it is the reference the Godot build is compared against.
 
 ## Non-goals
 - Changing gameplay. Improvements go to drawing, sound, input and the platform layer, not the simulation.
+- A custom OpenGL renderer, or rewriting the game logic in GDScript.
 
 ## Layout
 - C17 (gnu17), built with CMake (`CMakeLists.txt`), linking SDL3 and libm.
