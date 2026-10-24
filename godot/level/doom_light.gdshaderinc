@@ -50,7 +50,7 @@ int doom_colormap(int level, float depth, int contrast, bool plane) {
 	if (plane) {
 		// zlight: distance in steps of 16 units, each the scale of a
 		// wall at the step's far end (R_InitLightTables).
-		int index = int(min(depth / 16.0, float(MAXLIGHTZ - 1)));
+		int index = int(min(max(depth, 0.0) / 16.0, float(MAXLIGHTZ - 1)));
 		scale = 160 / (index + 1);
 	} else {
 		// scalelight: a wall's scale on a 320 wide screen, which is
