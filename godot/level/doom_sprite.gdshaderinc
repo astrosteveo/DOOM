@@ -48,7 +48,7 @@ void doom_sprite_vertex(inout vec3 vertex, out vec2 uv, out vec3 origin, out int
 	vec3 up = normalize(doom_up(view));
 	vec3 across = normalize(cross(up, vec3(0.0, 0.0, 1.0)));
 	vertex = origin + (across * at.x + up * at.y) / 32.0;
-	if (doom_depth(origin, view) * 32.0 < DOOM_MINZ) {
+	if (-origin.z * 32.0 < DOOM_MINZ) {
 		vertex = vec3(0.0, 0.0, 1.0);
 	}
 
