@@ -167,6 +167,10 @@ typedef struct player_s
     // tics.
     fixed_t		oldviewz;
 
+    // How far up the player looks with free look (G_FreeLook), as an
+    // angle, down below 0. Not saved, like oldviewz.
+    int			lookpitch;
+
 } player_t;
 
 

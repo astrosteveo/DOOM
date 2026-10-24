@@ -70,6 +70,9 @@ void G_Ticker (void);
 
 // The turn the mouse has made since the last ticcmd.
 angle_t G_PendingTurn (void);
+// Whether the mouse looks up and down, and the player shoots where they
+// look.
+boolean G_FreeLook (void);
 boolean G_Responder (event_t*	ev);
 
 void G_ScreenShot (void);

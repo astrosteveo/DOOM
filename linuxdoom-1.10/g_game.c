@@ -488,6 +488,7 @@ void G_DoLoadLevel (void)
 	if (playeringame[i] && players[i].playerstate == PST_DEAD) 
 	    players[i].playerstate = PST_REBORN; 
 	memset (players[i].frags,0,sizeof(players[i].frags)); 
+	players[i].lookpitch = 0;
     } 
 		 
     P_SetupLevel (gameepisode, gamemap, 0, gameskill);    
@@ -526,6 +527,43 @@ angle_t G_PendingTurn (void)
 
     return (angle_t)(-(mouseaccumx / 10) * 0x8) << 16;
 }
+
+//
+// G_FreeLook
+// Only for a host that draws the view itself, and never in a demo or a
+// net game, which must play as in vanilla Doom.
+//
+boolean G_FreeLook (void)
+{
+    return hostview && !demoplayback && !demorecording && !netgame;
+}
+
+
+//
+// G_Look
+// Looks up by the mouse's motion away from the player, in the counts
+// mouseaccumy takes, at once rather than in the next ticcmd: as far up
+// as G_BuildTiccmd turns for as many counts across.
+//
+#define MAXLOOKPITCH	(ANG90/9*8)	// 80 degrees
+
+static void G_Look (int counts)
+{
+    player_t*	player;
+    long long	pitch;
+
+    player = &players[consoleplayer];
+    if (gamestate != GS_LEVEL || paused || !player->mo)
+	return;
+
+    pitch = player->lookpitch + (long long)counts * (0x8<<16) / 10;
+    if (pitch > MAXLOOKPITCH)
+	pitch = MAXLOOKPITCH;
+    else if (pitch < -MAXLOOKPITCH)
+	pitch = -MAXLOOKPITCH;
+    player->lookpitch = (int)pitch;
+}
+
 
 //
 // G_Responder  
@@ -607,7 +645,10 @@ boolean G_Responder (event_t* ev)
 	mousebuttons[1] = ev->data1 & 2; 
 	mousebuttons[2] = ev->data1 & 4; 
 	mouseaccumx += ev->data2*(mouseSensitivity+5); 
-	mouseaccumy += ev->data3*(mouseSensitivity+5); 
+	if (G_FreeLook ())
+	    G_Look (ev->data3*(mouseSensitivity+5));
+	else
+	    mouseaccumy += ev->data3*(mouseSensitivity+5); 
 	return true;    // eat events 
  
       case ev_joystick: 
