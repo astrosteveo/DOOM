@@ -1,4 +1,3 @@
-class_name DoomThingSprites
 extends Node3D
 ## The level's things, drawn with Doom's own sprites as R_ProjectSprite
 ## draws them: each thing's frame this tic, seen from the side the eye
@@ -9,6 +8,8 @@ extends Node3D
 ## Doom does, and the things are two MultiMeshes, one for those drawn lit and one
 ## for those drawn as fuzz (MF_SHADOW): doom_sprite.gdshaderinc places
 ## each from where its thing stands and which lump it shows.
+
+const DoomSpace := preload("res://level/doom_space.gd")
 
 const MF_NOSECTOR := 8	# not drawn: teleport exits and the like
 const MF_SHADOW := 0x40000	# spectres and partial invisibility

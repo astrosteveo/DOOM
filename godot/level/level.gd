@@ -1,4 +1,3 @@
-class_name DoomLevel
 extends Node3D
 ## The level the game is on, built from what DoomSim reads out of it:
 ## its walls as one mesh with a surface per texture, its floors and
@@ -13,6 +12,12 @@ extends Node3D
 ## heights, a tic's and the tic before's: the shaders move walls, floors
 ## and ceilings between them, so they move smoothly, and a door or lift
 ## rebuilds nothing either.
+
+const DoomSpace := preload("res://level/doom_space.gd")
+const DoomThingSprites := preload("res://level/thing_sprites.gd")
+const DoomThingProps := preload("res://level/thing_props.gd")
+const DoomThingLights := preload("res://level/thing_lights.gd")
+const DoomContent := preload("res://content/doom_content.gd")
 
 const SURFACE_SHADER := preload("res://level/surface.gdshader")
 const SKY_SHADER := preload("res://level/sky.gdshader")

@@ -1,4 +1,3 @@
-class_name DoomInput
 extends Node
 ## The player's keys and mouse, posted to the game as Doom's own input
 ## events, as i_video.c posts SDL's, so the menus, the automap, cheats

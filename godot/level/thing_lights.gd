@@ -1,4 +1,3 @@
-class_name DoomThingLights
 extends Node3D
 ## Godot lights for the things that give light: lamps, torches, candles
 ## and burning barrels, and fireballs, rockets and plasma in flight and
@@ -7,6 +6,8 @@ extends Node3D
 ## to that. A light per thing, from a pool that grows as it needs to,
 ## moved between tics with its thing. Fixtures cast shadows; projectiles,
 ## which come and go, don't.
+
+const DoomSpace := preload("res://level/doom_space.gd")
 
 const MF_MISSILE := 0x10000	# a projectile in flight, cleared as it bursts
 

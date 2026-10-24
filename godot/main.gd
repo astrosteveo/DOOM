@@ -18,6 +18,13 @@ extends Node3D
 ## plays the game's own mix of sound and music, in flat stereo as the SDL3
 ## build plays it.
 
+const DoomSpace := preload("res://level/doom_space.gd")
+const DoomLevel := preload("res://level/level.gd")
+const DoomInput := preload("res://input/doom_input.gd")
+const DoomScreen := preload("res://screen/doom_screen.gd")
+const DoomSound := preload("res://sound/doom_sound.gd")
+const DoomMusic := preload("res://sound/doom_music.gd")
+
 @onready var sim: DoomSim = %Sim
 @onready var input: DoomInput = %Input
 @onready var screen: DoomScreen = %Screen

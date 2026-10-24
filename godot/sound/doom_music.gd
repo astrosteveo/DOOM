@@ -1,4 +1,3 @@
-class_name DoomMusic
 extends AudioStreamPlayer
 ## Plays the game's music: Doom's MUS tracks on its emulated OPL3, which
 ## the game renders a frame's worth at a time into an

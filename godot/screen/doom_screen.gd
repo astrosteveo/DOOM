@@ -1,4 +1,3 @@
-class_name DoomScreen
 extends CanvasLayer
 ## Doom's own 2D screen over the 3D view: the status bar, messages, the
 ## menus, the automap, the intermission, the title pages and the

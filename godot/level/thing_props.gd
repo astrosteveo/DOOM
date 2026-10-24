@@ -1,4 +1,3 @@
-class_name DoomThingProps
 extends Node3D
 ## Props in place of the sprites content/definitions.cfg lists them for
 ## (DoomContent): a scene a thing, standing where the thing stands and
@@ -6,6 +5,10 @@ extends Node3D
 ## lit as Doom lights the sprite it replaces (prop.gdshader). A thing
 ## keeps its prop while its sprite is the listed one, so a state with
 ## another sprite, a barrel bursting, shows Doom's own.
+
+const DoomSpace := preload("res://level/doom_space.gd")
+const DoomThingLights := preload("res://level/thing_lights.gd")
+const DoomContent := preload("res://content/doom_content.gd")
 
 const MF_NOSECTOR := 8	# not drawn: teleport exits and the like
 

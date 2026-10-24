@@ -1,4 +1,3 @@
-class_name DoomSound
 extends Node3D
 ## Plays the game's sound effects as Godot's audio. The game decides
 ## what plays, as it does for the SDL3 build: a few channels, one sound
@@ -15,6 +14,8 @@ extends Node3D
 ## it. Godot's own falloff would make a monster across a room 6 to 12 dB
 ## quieter than in Doom, then cut it off at 1200 units while still
 ## clearly heard.
+
+const DoomSpace := preload("res://level/doom_space.gd")
 
 ## Doom's volume in the middle: DMX gives each side half the sound, and
 ## the SDL3 build mixes sound effects at 0.9 of full scale (i_sound.c).

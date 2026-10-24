@@ -1,4 +1,3 @@
-class_name DoomSpace
 ## Doom's map space in Godot's. Doom's x is east, y north and z up, in
 ## map units; Godot's y is up and -z is north. A map unit is 1/32 m, so
 ## the player, 56 units tall, is 1.75 m.

@@ -1,4 +1,3 @@
-class_name DoomContent
 extends RefCounted
 ## What content/definitions.cfg puts in place of Doom's own textures,
 ## flats and sprites, made ready to draw: materials as ShaderMaterials
