@@ -70,7 +70,9 @@ func _process(_delta: float) -> void:
 	level.visible = screen.view.has_area()
 	if state["gamestate"] != 0 or not level.visible:
 		return
-	level.place_things(fraction)
+	level.place_things(fraction,
+		lerpf(state["oldx"], state["x"], fraction),
+		lerpf(state["oldy"], state["y"], fraction))
 	_place_camera(state, fraction)
 
 

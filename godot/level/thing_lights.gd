@@ -125,7 +125,7 @@ func update(data: Dictionary) -> void:
 
 
 ## Moves the lights fraction of the way from where their things were a
-## tic before to where they are, as the boxes move.
+## tic before to where they are, as the things move.
 func place(fraction: float) -> void:
 	for i in _count:
 		_lights[i].position = _from[i].lerp(_to[i], fraction)

@@ -22,9 +22,9 @@ simulation in C, presented by Godot as a modern 3D game with custom textures and
 - `linuxdoom-1.10/d_host.h`: the engine as a library for a host that runs it a tic at a time and reads its state
   (plain C, so C++ can include it; the engine's own headers don't compile as C++).
 - `godot/`: the Godot 4.7 project. `extension/` is the GDExtension (C++, godot-cpp fetched by CMake) with the
-  `DoomSim` node; `main.tscn` runs it, `level/` builds the level from what it reads, `input/` posts the keyboard and
-  mouse to the game, `screen/` shows Doom's own 2D screen over the 3D view and `sound/` plays its sounds and music;
-  `tools/run_demo.gd` plays a demo headless.
+  `DoomSim` node; `main.tscn` runs it, `level/` builds the level from what it reads and draws the things with Doom's
+  sprites (`thing_sprites.gd`), `input/` posts the keyboard and mouse to the game, `screen/` shows Doom's own 2D screen
+  over the 3D view and `sound/` plays its sounds and music; `tools/run_demo.gd` plays a demo headless.
 - `third_party/nuked-opl3/`: the OPL3 emulator, vendored unmodified (LGPL 2.1+).
 - `ipx/`, `sersrc/`, `sndserv/`: the original DOS network drivers and Linux sound server. Not built.
 

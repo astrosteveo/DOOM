@@ -93,13 +93,52 @@ door or lift rebuilds nothing. On demo1's E1M5 the median tic still takes 0.2 ms
 
 Things and their lights move between tics too, and so does the camera. The engine already keeps where each thing and
 the eye were a tic before, for the SDL3 build's interpolation, so `DH_GetThings` and `DH_GetState` hand that over, the
-same as now when nothing moved or the game stood still. Godot places the boxes, the lights and the camera in between
+same as now when nothing moved or the game stood still. Godot places the things, the lights and the camera in between
 every frame, as `R_SetupFrame` and `R_ProjectSprite` do; the camera turns at once with the mouse (below). Each thing
 also has an id (`mobj_t`'s `id`, not game state), which keeps a flame's flicker steady when the light pool hands it
 another light, and will let sprites and models keep their animation.
 
 Not yet: shadows of walls a door or lift moves keep the wall where it was until something else in the light's range
 moves, since the shaders move it.
+
+## Sprites
+
+Things are drawn with Doom's own sprites, as `R_ProjectSprite` draws them, in place of the boxes of the first test.
+
+- **What each thing shows, from the game.** `DH_GetThings` gives each thing's sprite, frame, whether the frame is full
+  bright, and its sector. `DH_SpriteFrame` gives a frame's lump for each of the 8 views and whether it is mirrored, and
+  `DH_SpriteInfo` and `DH_SpritePixels` each lump's size, offsets and pixels, and `DH_ColormapRGBA` COLORMAP's colours.
+  All of it is read-only.
+- **Placed as Doom places them.** `thing_sprites.gd` packs every sprite lump into one atlas when the game starts (483
+  lumps in the shareware IWAD, a 2048-wide atlas) and draws the things as two MultiMeshes, one instance a thing, filled
+  every frame. Each frame it picks the view from the eye between tics and the thing's angle between tics, as
+  `R_ProjectSprite` does: the angle from the eye to the thing, less the thing's, plus 202.5 degrees, in steps of 45.
+  `doom_sprite.gdshaderinc` stands the lump upright along the view plane, a pixel to a map unit, with the thing at its
+  offsets, mirrored where Doom mirrors it with the offsets kept; nearer than `MINZ` (4 units), as for the player's own
+  thing, nothing is drawn.
+- **Over the floor.** Doom clips sprites only by the walls in front of them, so a sprite's pixels below the thing's
+  feet show over its floor: most monsters and items reach a few pixels below. Godot's depth test would hide them, so
+  those pixels take the depth of the floor they cover, a hair nearer; walls in front still hide them.
+- **Light.** The sector's light, the extralight and the thing's depth pick the COLORMAP row through
+  `doom_light.gdshaderinc`, as walls by scalelight with no fake contrast; full bright frames take row 0 and
+  `fixedcolormap` overrides both, as in `R_ProjectSprite`. Unlike walls, sprites go through COLORMAP itself, not a
+  brightness: they are always Doom's palette art, and COLORMAP's darker rows shift hues, pinks toward tans and greens
+  toward browns, which a brightness keeps. With a brightness, a demon at medium light was plainly pink where Doom's is
+  tan. Godot's lights add to sprites as to walls.
+- **Fuzz.** Spectres and partial invisibility (`MF_SHADOW`) are a second MultiMesh that reads the screen behind them,
+  as `R_DrawFuzzColumn` does: through COLORMAP row 6, an original sized pixel above or below by Doom's fuzz table. Doom
+  fuzzes each column downward, so a pixel that reads the one above reads it already darkened; the shader follows the
+  table up the column to get the same dark streaks.
+- **Between tics** things move as the boxes did, and `thing_lights.gd` still lights them by type. Each instance
+  keeps its thing's `id`, for models later.
+
+With `-classic`, demo1 at tics 403, 1000, 1259, 2416 and 2824 and demo2 at 579, 1379, 1870, 1900 and 3744 show the same
+sprites as the SDL3 build's `-shotat`: the same frames and views, mirrored alike, standing alike against the walls and
+floors, at the same light and colours, full bright candelabras, exploding barrels and imp fireballs, and the spectres'
+fuzz. The three demos still log the same `-hashlog` through Godot as in the SDL3 build.
+
+Not yet: player colours in a net game (`MF_TRANSLATION`) draw every player green; sprites cast no shadows from Godot's
+lights.
 
 ## Playing it
 
@@ -176,5 +215,6 @@ sound can't change how the game plays: `tools/run_demo.gd` now runs with sound o
 2. ~~Sector lighting, then Godot's: lights for lamps and fireballs, fog, glow.~~ Done, above.
 3. ~~Input, menus and the status bar, so the game can be played, not only watched.~~ Done, above.
 4. ~~Sound and music through Godot's audio.~~ Done, above.
-5. Content: a definitions file mapping Doom's textures, flats and things to easel's PBR materials and GLB
-   props, then models with animations for monsters once easel's character kind exists.
+5. Content. ~~Things drawn with Doom's own sprites.~~ Done, above. Then a definitions file mapping Doom's textures,
+   flats and things to easel's PBR materials and GLB props, then models with animations for monsters once easel's
+   character kind exists.

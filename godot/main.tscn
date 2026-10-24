@@ -8,18 +8,29 @@
 [ext_resource type="Shader" path="res://screen/screen.gdshader" id="6"]
 [ext_resource type="Script" path="res://sound/doom_sound.gd" id="7"]
 [ext_resource type="Script" path="res://sound/doom_music.gd" id="8"]
+[ext_resource type="Script" path="res://level/thing_sprites.gd" id="9"]
+[ext_resource type="Shader" path="res://level/sprite.gdshader" id="10"]
+[ext_resource type="Shader" path="res://level/fuzz.gdshader" id="11"]
 
-[sub_resource type="StandardMaterial3D" id="thing_material"]
-shading_mode = 0
-vertex_color_use_as_albedo = true
+[sub_resource type="ShaderMaterial" id="sprite_material"]
+shader = ExtResource("10")
 
-[sub_resource type="BoxMesh" id="thing_box"]
-material = SubResource("thing_material")
+[sub_resource type="ShaderMaterial" id="fuzz_material"]
+shader = ExtResource("11")
 
-[sub_resource type="MultiMesh" id="things"]
+[sub_resource type="QuadMesh" id="sprite_quad"]
+size = Vector2(1, 1)
+center_offset = Vector3(0.5, 0.5, 0)
+
+[sub_resource type="MultiMesh" id="sprites"]
 transform_format = 1
-use_colors = true
-mesh = SubResource("thing_box")
+use_custom_data = true
+mesh = SubResource("sprite_quad")
+
+[sub_resource type="MultiMesh" id="shadows"]
+transform_format = 1
+use_custom_data = true
+mesh = SubResource("sprite_quad")
 
 [sub_resource type="ShaderMaterial" id="screen_material"]
 shader = ExtResource("6")
@@ -58,11 +69,25 @@ unique_name_in_owner = true
 [node name="Planes" type="Node3D" parent="Level"]
 unique_name_in_owner = true
 
-[node name="Things" type="MultiMeshInstance3D" parent="Level"]
+[node name="Things" type="Node3D" parent="Level"]
+unique_name_in_owner = true
+script = ExtResource("9")
+
+[node name="Sprites" type="MultiMeshInstance3D" parent="Level/Things"]
 unique_name_in_owner = true
 physics_interpolation_mode = 2
+material_override = SubResource("sprite_material")
 cast_shadow = 0
-multimesh = SubResource("things")
+extra_cull_margin = 16.0
+multimesh = SubResource("sprites")
+
+[node name="Shadows" type="MultiMeshInstance3D" parent="Level/Things"]
+unique_name_in_owner = true
+physics_interpolation_mode = 2
+material_override = SubResource("fuzz_material")
+cast_shadow = 0
+extra_cull_margin = 16.0
+multimesh = SubResource("shadows")
 
 [node name="Lights" type="Node3D" parent="Level"]
 unique_name_in_owner = true
