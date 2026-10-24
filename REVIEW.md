@@ -9,6 +9,8 @@ gate: push             # push | off: block Claude's `git push` while any finding
 branch: require        # require | off: no file edits on the default branch
 workflow: manual       # manual | auto: auto runs review and ship when a task is done; manual waits for you to ask
 merge: rebase          # rebase | squash | merge: how /solo-review:ship lands a branch
+adjudication: none     # user | none: none has /solo-review:review-learn take its recommended answer and report it,
+                       # instead of asking you to confirm an escape or approve a REVIEW.md edit
 high:                  # High risk: reviewed deep with a security pass, and you read them before a merge. Added to
                        # the plugin's always-High list (Claude config, CLAUDE.md, CI, git hooks, dependency
                        # manifests, secrets), which nothing here can remove. `ledger.py config` shows both.
