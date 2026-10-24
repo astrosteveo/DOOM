@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://level/thing_sprites.gd" id="9"]
 [ext_resource type="Shader" path="res://level/sprite.gdshader" id="10"]
 [ext_resource type="Shader" path="res://level/fuzz.gdshader" id="11"]
+[ext_resource type="Script" path="res://level/thing_props.gd" id="12"]
 
 [sub_resource type="ShaderMaterial" id="sprite_material"]
 shader = ExtResource("10")
@@ -88,6 +89,10 @@ material_override = SubResource("fuzz_material")
 cast_shadow = 0
 extra_cull_margin = 16.0
 multimesh = SubResource("shadows")
+
+[node name="Props" type="Node3D" parent="Level"]
+unique_name_in_owner = true
+script = ExtResource("12")
 
 [node name="Lights" type="Node3D" parent="Level"]
 unique_name_in_owner = true

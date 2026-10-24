@@ -5,7 +5,9 @@ extends Node3D
 ## ceilings as a node per sector for each, lit by their sectors' light
 ## levels as Doom lights them; the sky where Doom shows it; and
 ## its things with Doom's sprites (DoomThingSprites), moved smoothly
-## between tics.
+## between tics. Where content/definitions.cfg lists something else for
+## a texture, flat or sprite (DoomContent), that is drawn instead, lit
+## by Doom's light all the same: a material, or a prop (DoomThingProps).
 ## Light lives in a texture, so a change of light rebuilds nothing;
 ## surface.gdshader darkens it with distance as Doom does. So do sector
 ## heights, a tic's and the tic before's: the shaders move walls, floors
@@ -24,9 +26,14 @@ const SECTOR_ROW := 256
 @onready var walls: MeshInstance3D = %Walls
 @onready var planes: Node3D = %Planes
 @onready var things: DoomThingSprites = %Things
+@onready var props: DoomThingProps = %Props
 @onready var lights: DoomThingLights = %Lights
 
+var _content := DoomContent.new()
 var _materials: Dictionary[int, ShaderMaterial] = {}
+## Each wall texture's size in texels: walls' uvs run 0 to 1 across one
+## repeat of it, whatever material is drawn in its place.
+var _sizes: Dictionary[int, Vector2] = {}
 var _textures := PackedInt32Array()
 
 var _flat_materials: Dictionary[int, ShaderMaterial] = {}
@@ -121,7 +128,7 @@ func update_planes(sim: DoomSim) -> void:
 ## the lights on those that give light, unless the lights are hidden.
 func update_things(sim: DoomSim) -> void:
 	var data := sim.get_things()
-	things.update(sim, data)
+	things.update(sim, data, props.update(sim, data, _content))
 	if lights.visible:
 		lights.update(data)
 
@@ -131,6 +138,7 @@ func update_things(sim: DoomSim) -> void:
 ## between tics, each thing seen from the eye at (view_x, view_y).
 func place_things(fraction: float, view_x: float, view_y: float) -> void:
 	things.place(fraction, view_x, view_y)
+	props.place(fraction)
 	if lights.visible:
 		lights.place(fraction)
 
@@ -168,7 +176,8 @@ func _build_walls(sim: DoomSim, data: Dictionary) -> void:
 			surfaces[texture] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array(), PackedVector2Array(), PackedFloat32Array()]
 		var size := Vector2.ONE
 		if texture != DoomSim.SKY:
-			size = _material(sim, texture).get_shader_parameter("albedo").get_size()
+			_material(sim, texture)
+			size = _sizes[texture]
 		_add_wall(surfaces[texture], coords, i * 10, size, sectors[i], wall_planes, i * 3, heights)
 
 	var mesh := ArrayMesh.new()
@@ -247,7 +256,12 @@ func _add_wall(surface: Array, coords: PackedFloat32Array, c: int, size: Vector2
 
 func _material(sim: DoomSim, texture: int) -> ShaderMaterial:
 	if not _materials.has(texture):
-		_materials[texture] = _surface_material(sim.get_texture_name(texture), sim.get_texture_image(texture), false)
+		var name := sim.get_texture_name(texture)
+		var image := sim.get_texture_image(texture)
+		_sizes[texture] = Vector2(image.get_size())
+		_materials[texture] = _content.surface(name, false)
+		if _materials[texture] == null:
+			_materials[texture] = _surface_material(name, image, false)
 	return _materials[texture]
 
 
@@ -336,7 +350,10 @@ func _flat_material(sim: DoomSim, flat: int) -> ShaderMaterial:
 	if flat == DoomSim.SKY:
 		return _sky_material
 	if not _flat_materials.has(flat):
-		_flat_materials[flat] = _surface_material(sim.get_flat_name(flat), sim.get_flat_image(flat), true)
+		var name := sim.get_flat_name(flat)
+		_flat_materials[flat] = _content.surface(name, true)
+		if _flat_materials[flat] == null:
+			_flat_materials[flat] = _surface_material(name, sim.get_flat_image(flat), true)
 	return _flat_materials[flat]
 
 

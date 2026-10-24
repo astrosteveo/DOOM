@@ -84,15 +84,16 @@ func start(sim: DoomSim) -> void:
 		material.set_shader_parameter("colormap", colormap)
 
 
-## Reads the things this tic, for place() to draw between tics.
-func update(sim: DoomSim, things: Dictionary) -> void:
+## Reads the things this tic, for place() to draw between tics, but for
+## those drawn as props, which taken marks.
+func update(sim: DoomSim, things: Dictionary, taken: PackedByteArray) -> void:
 	_things = things
 	var flags: PackedInt32Array = things["flags"]
 	var frames: PackedInt32Array = things["sprites"]
 	_lit.clear()
 	_fuzz.clear()
 	for i in flags.size():
-		if flags[i] & MF_NOSECTOR:
+		if flags[i] & MF_NOSECTOR or taken[i]:
 			continue
 		var key := frames[i * 3] * 256 + frames[i * 3 + 1]
 		if not _frames.has(key):
