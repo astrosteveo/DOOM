@@ -269,10 +269,56 @@ typedef struct
     // Tells it from every other thing the game made this session, to
     // follow it from tic to tic; never 0.
     int		id;
+    // What Doom draws it as, this tic: a frame of a sprite, for
+    // DH_SpriteFrame, and whether the frame is full bright, drawn at
+    // full light whatever its sector's. MF_SHADOW in flags draws it
+    // as fuzz instead: what is behind it, a little darker, shifted up
+    // or down a row.
+    int		sprite;
+    int		frame;
+    int		fullbright;
+    int		sector;		// the one it is in, for its light
 } dh_thing_t;
 
 // The same for the things in the level.
 int		DH_GetThings (dh_thing_t* things, int max);
+
+// Sprites are drawn from sprite lumps, patches numbered from 0 up to
+// DH_SpriteLumps, standing upright and facing the eye: across, along
+// the view plane, and up, along the vertical, a pixel to a map unit.
+int		DH_SpriteLumps (void);
+
+// A sprite lump's name and size, in pixels, and where the thing
+// stands on it: the thing's x and y are leftoffset pixels in from the
+// left edge, and its z topoffset pixels below the top edge. 0 when
+// there is no such lump.
+int		DH_SpriteInfo (int lump, char name[9], int* width, int* height,
+			       int* leftoffset, int* topoffset);
+
+// A sprite lump as width*height pairs of bytes, row by row from the
+// top: the pixel's palette index, and 255 where it has a pixel or 0
+// where it has none. DH_ColormapRGBA gives the colors, at any light.
+void		DH_SpritePixels (int lump, unsigned char* pixels);
+
+// COLORMAP, which Doom draws everything through: DH_COLORMAPS rows of
+// 256 RGBA colors, each palette index as drawn at one light. Row 0 is
+// full brightness, the palette itself; each row is a step darker, to
+// black at 31; 32 is invulnerability's inverted gray.
+enum
+{
+    DH_COLORMAPS = 34
+};
+
+void		DH_ColormapRGBA (unsigned char* rgba);
+
+// A frame of a sprite: the lump for each of 8 views of the thing, and
+// whether it is drawn mirrored, left for right with its offsets kept.
+// The view, as R_ProjectSprite picks it, is the angle from the eye to
+// the thing, less the thing's angle, plus 202.5 degrees, in 45 degree
+// steps from 0 to 7: 0 seen from the front, 4 from behind. Returns 1
+// when the views differ, 0 when the frame looks the same from all
+// round (all 8 are the same), and -1 when there is no such frame.
+int		DH_SpriteFrame (int sprite, int frame, int lumps[8], int flips[8]);
 
 // A sector as it is this tic. Floors and ceilings move and their
 // flats animate, so a host reads them every tic; the shape of each

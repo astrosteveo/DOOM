@@ -1,9 +1,9 @@
 // DoomSim: the 1997 game, run a tic at a time inside Godot.
 //
-// It hands Godot the game's state, walls, sectors, things, textures and
-// flats as Doom has them, in map units; the scripts turn them into
-// Godot's space. Doom draws its own 2D screen, which Godot shows over
-// the 3D view. The game picks the sounds that play, and renders the
+// It hands Godot the game's state, walls, sectors, things, textures,
+// flats and sprites as Doom has them, in map units; the scripts turn
+// them into Godot's space. Doom draws its own 2D screen, which Godot
+// shows over the 3D view. The game picks the sounds that play, and renders the
 // music; Godot plays them, opening no audio device of the game's.
 // It reads the game and never writes it; the player's keys and mouse
 // go in as Doom's own input events, so demos play as they do in the
@@ -95,6 +95,11 @@ public:
 	Ref<Image> get_texture_image(int p_texture) const;
 	String get_flat_name(int p_flat) const;
 	Ref<Image> get_flat_image(int p_flat) const;
+	int get_sprite_lump_count() const;
+	Dictionary get_sprite_lump(int p_lump) const;
+	Ref<Image> get_sprite_image(int p_lump) const;
+	Dictionary get_sprite_frame(int p_sprite, int p_frame) const;
+	Ref<Image> get_colormap_image() const;
 
 	Dictionary get_sounds() const;
 	String get_sound_name(int p_sfx) const;

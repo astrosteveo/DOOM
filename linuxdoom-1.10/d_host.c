@@ -33,6 +33,7 @@
 #include "i_video.h"
 #include "i_system.h"
 #include "m_argv.h"
+#include "m_swap.h"
 #include "m_menu.h"
 #include "p_local.h"
 #include "p_tick.h"
@@ -715,6 +716,10 @@ int DH_GetThings (dh_thing_t* things, int max)
 	    t->type = mo->type;
 	    t->flags = mo->flags;
 	    t->id = mo->id;
+	    t->sprite = mo->sprite;
+	    t->frame = mo->frame & FF_FRAMEMASK;
+	    t->fullbright = (mo->frame & FF_FULLBRIGHT) != 0;
+	    t->sector = mo->subsector->sector - sectors;
 	    if (Moved () && mo->interp)
 	    {
 		t->oldx = Units (mo->oldx);
@@ -1109,6 +1114,122 @@ void DH_FlatRGBA (int flat, unsigned char* rgba)
 	rgba[i*4+2] = c[2];
 	rgba[i*4+3] = 255;
     }
+}
+
+
+//
+// DH_SpriteLumps
+//
+int DH_SpriteLumps (void)
+{
+    return numspritelumps;
+}
+
+
+//
+// DH_SpriteInfo
+//
+int DH_SpriteInfo (int lump, char name[9], int* width, int* height,
+		   int* leftoffset, int* topoffset)
+{
+    patch_t*	patch;
+
+    if (lump < 0 || lump >= numspritelumps)
+	return 0;
+    patch = W_CacheLumpNum (firstspritelump + lump, PU_CACHE);
+    memcpy (name, lumpinfo[firstspritelump + lump].name, 8);
+    name[8] = 0;
+    *width = SHORT(patch->width);
+    *height = SHORT(patch->height);
+    *leftoffset = SHORT(patch->leftoffset);
+    *topoffset = SHORT(patch->topoffset);
+    return 1;
+}
+
+
+//
+// DH_SpritePixels
+// Each column's posts, as R_DrawMaskedColumn draws them.
+//
+void DH_SpritePixels (int lump, unsigned char* pixels)
+{
+    patch_t*	patch;
+    column_t*	column;
+    byte*	source;
+    unsigned char* p;
+    int		width;
+    int		height;
+    int		x;
+    int		y;
+    int		i;
+
+    if (lump < 0 || lump >= numspritelumps)
+	return;
+
+    patch = W_CacheLumpNum (firstspritelump + lump, PU_CACHE);
+    width = SHORT(patch->width);
+    height = SHORT(patch->height);
+    memset (pixels, 0, (size_t)width*height*2);
+    for (x=0 ; x<width ; x++)
+    {
+	column = (column_t *)((byte *)patch + LONG(patch->columnofs[x]));
+	for ( ; column->topdelta != 0xff ; )
+	{
+	    source = (byte *)column + 3;
+	    for (i=0 ; i<column->length ; i++)
+	    {
+		y = column->topdelta + i;
+		if (y >= height)
+		    break;
+		p = pixels + (y*width + x)*2;
+		p[0] = source[i];
+		p[1] = 255;
+	    }
+	    column = (column_t *)((byte *)column + column->length + 4);
+	}
+    }
+}
+
+
+//
+// DH_ColormapRGBA
+//
+void DH_ColormapRGBA (unsigned char* rgba)
+{
+    byte	palette[768];
+    byte*	c;
+    int		i;
+
+    memcpy (palette, W_CacheLumpName ("PLAYPAL", PU_CACHE), sizeof(palette));
+    for (i=0 ; i<DH_COLORMAPS*256 ; i++)
+    {
+	c = palette + colormaps[i]*3;
+	rgba[i*4] = c[0];
+	rgba[i*4+1] = c[1];
+	rgba[i*4+2] = c[2];
+	rgba[i*4+3] = 255;
+    }
+}
+
+
+//
+// DH_SpriteFrame
+//
+int DH_SpriteFrame (int sprite, int frame, int lumps[8], int flips[8])
+{
+    spriteframe_t*	sprframe;
+    int			i;
+
+    if (sprite < 0 || sprite >= numsprites
+	|| frame < 0 || frame >= sprites[sprite].numframes)
+	return -1;
+    sprframe = &sprites[sprite].spriteframes[frame];
+    for (i=0 ; i<8 ; i++)
+    {
+	lumps[i] = sprframe->lump[sprframe->rotate ? i : 0];
+	flips[i] = sprframe->flip[sprframe->rotate ? i : 0];
+    }
+    return sprframe->rotate != 0;
 }
 
 

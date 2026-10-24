@@ -248,11 +248,15 @@ Dictionary DoomSim::get_things() const {
 	PackedInt32Array types;
 	PackedInt32Array flags;
 	PackedInt32Array ids;
+	PackedInt32Array sprites;
+	PackedInt32Array sectors;
 	coords.resize(count * 6);
 	old.resize(count * 4);
 	types.resize(count);
 	flags.resize(count);
 	ids.resize(count);
+	sprites.resize(count * 3);
+	sectors.resize(count);
 	for (int i = 0; i < count; i++) {
 		const dh_thing_t &t = things[i];
 		const float values[6] = { t.x, t.y, t.z, t.radius, t.height, t.angle };
@@ -266,14 +270,21 @@ Dictionary DoomSim::get_things() const {
 		types[i] = t.type;
 		flags[i] = t.flags;
 		ids[i] = t.id;
+		sprites[i * 3] = t.sprite;
+		sprites[i * 3 + 1] = t.frame;
+		sprites[i * 3 + 2] = t.fullbright;
+		sectors[i] = t.sector;
 	}
 	// coords: x, y, z, radius, height, angle for each thing; old: x, y,
-	// z and angle a tic before.
+	// z and angle a tic before; sprites: sprite, frame and whether it's
+	// full bright.
 	d["coords"] = coords;
 	d["old"] = old;
 	d["types"] = types;
 	d["flags"] = flags;
 	d["ids"] = ids;
+	d["sprites"] = sprites;
+	d["sectors"] = sectors;
 	return d;
 }
 
@@ -376,6 +387,68 @@ Ref<Image> DoomSim::get_flat_image(int p_flat) const {
 	rgba.resize(DH_FLATSIZE * DH_FLATSIZE * 4);
 	DH_FlatRGBA(p_flat, rgba.ptrw());
 	return Image::create_from_data(DH_FLATSIZE, DH_FLATSIZE, false, Image::FORMAT_RGBA8, rgba);
+}
+
+int DoomSim::get_sprite_lump_count() const {
+	return started ? DH_SpriteLumps() : 0;
+}
+
+Dictionary DoomSim::get_sprite_lump(int p_lump) const {
+	Dictionary d;
+	char name[9];
+	int width, height, left, top;
+	if (!started || !DH_SpriteInfo(p_lump, name, &width, &height, &left, &top)) {
+		return d;
+	}
+	d["name"] = String(name);
+	d["size"] = Vector2i(width, height);
+	// Where the thing stands, in pixels from the top left.
+	d["offset"] = Vector2i(left, top);
+	return d;
+}
+
+Ref<Image> DoomSim::get_sprite_image(int p_lump) const {
+	char name[9];
+	int width, height, left, top;
+	if (!started || !DH_SpriteInfo(p_lump, name, &width, &height, &left, &top)) {
+		return Ref<Image>();
+	}
+	// Luminance the palette index, alpha whether there's a pixel.
+	PackedByteArray pixels;
+	pixels.resize((int64_t)width * height * 2);
+	DH_SpritePixels(p_lump, pixels.ptrw());
+	return Image::create_from_data(width, height, false, Image::FORMAT_LA8, pixels);
+}
+
+Ref<Image> DoomSim::get_colormap_image() const {
+	if (!started) {
+		return Ref<Image>();
+	}
+	PackedByteArray rgba;
+	rgba.resize(256 * DH_COLORMAPS * 4);
+	DH_ColormapRGBA(rgba.ptrw());
+	return Image::create_from_data(256, DH_COLORMAPS, false, Image::FORMAT_RGBA8, rgba);
+}
+
+Dictionary DoomSim::get_sprite_frame(int p_sprite, int p_frame) const {
+	Dictionary d;
+	int lumps[8], flips[8];
+	int rotates = started ? DH_SpriteFrame(p_sprite, p_frame, lumps, flips) : -1;
+	if (rotates < 0) {
+		return d;
+	}
+	PackedInt32Array views;
+	PackedByteArray mirrored;
+	views.resize(8);
+	mirrored.resize(8);
+	for (int i = 0; i < 8; i++) {
+		views[i] = lumps[i];
+		mirrored[i] = flips[i] ? 1 : 0;
+	}
+	d["rotates"] = rotates == 1;
+	d["lumps"] = views;
+	d["flips"] = mirrored;
+	return d;
 }
 
 static_assert(DoomSim::SOUND_LOCAL == DH_SOUND_LOCAL && DoomSim::SOUND_THING == DH_SOUND_THING
@@ -515,6 +588,11 @@ void DoomSim::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_texture_image", "texture"), &DoomSim::get_texture_image);
 	ClassDB::bind_method(D_METHOD("get_flat_name", "flat"), &DoomSim::get_flat_name);
 	ClassDB::bind_method(D_METHOD("get_flat_image", "flat"), &DoomSim::get_flat_image);
+	ClassDB::bind_method(D_METHOD("get_sprite_lump_count"), &DoomSim::get_sprite_lump_count);
+	ClassDB::bind_method(D_METHOD("get_sprite_lump", "lump"), &DoomSim::get_sprite_lump);
+	ClassDB::bind_method(D_METHOD("get_sprite_image", "lump"), &DoomSim::get_sprite_image);
+	ClassDB::bind_method(D_METHOD("get_sprite_frame", "sprite", "frame"), &DoomSim::get_sprite_frame);
+	ClassDB::bind_method(D_METHOD("get_colormap_image"), &DoomSim::get_colormap_image);
 	ClassDB::bind_method(D_METHOD("get_sounds"), &DoomSim::get_sounds);
 	ClassDB::bind_method(D_METHOD("get_sound_name", "sfx"), &DoomSim::get_sound_name);
 	ClassDB::bind_method(D_METHOD("get_sound", "sfx"), &DoomSim::get_sound);
