@@ -86,6 +86,12 @@ typedef struct
     float	oldx, oldy, oldz;
     float	oldangle;
     float	turn;
+    // With free look (freelook 1), how far up the eye looks, radians,
+    // down below 0; it moves at once with the mouse, and the player
+    // shoots along it. 0 without, as in a demo or a net game, where the
+    // game plays as vanilla Doom's.
+    int		freelook;
+    float	pitch;
     // Whether the menu is open, the game paused, a demo playing and the
     // automap up, each 0 or 1.
     int		menu;
@@ -108,7 +114,8 @@ void		DH_GetState (dh_state_t* state);
 // DH_KEY_ codes; a mouse event carries the buttons held, 1 left, 2
 // right and 4 middle, and how far the mouse moved right and away from
 // the player since the last, in the SDL3 build's mouse counts (a pixel
-// of relative motion), which the game scales by its sensitivity. A
+// of relative motion), which the game scales by its sensitivity. Away
+// from the player looks up with free look, and is ignored without. A
 // pointer event is the cursor, for the menu, while the mouse isn't the
 // game's: the buttons held as for the mouse, with 8 and 16 while the
 // wheel turns up and down, and where the cursor is in the screen's

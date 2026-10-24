@@ -38,6 +38,7 @@ rcsid[] = "$Id: p_mobj.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
 #include "s_sound.h"
 
 #include "doomstat.h"
+#include "g_game.h"
 
 
 void G_PlayerReborn (int player);
@@ -956,12 +957,18 @@ P_SpawnPlayerMissile
     fixed_t	y;
     fixed_t	z;
     fixed_t	slope;
+    boolean	look;
     
-    // see which target is to be aimed at
+    // see which target is to be aimed at, or with free look, where
+    // the player looks
+    look = source->player && G_FreeLook ();
     an = source->angle;
-    slope = P_AimLineAttack (source, an, 16*64*FRACUNIT);
+    if (look)
+	slope = P_LookSlope (source->player);
+    else
+	slope = P_AimLineAttack (source, an, 16*64*FRACUNIT);
     
-    if (!linetarget)
+    if (!look && !linetarget)
     {
 	an += 1<<26;
 	slope = P_AimLineAttack (source, an, 16*64*FRACUNIT);

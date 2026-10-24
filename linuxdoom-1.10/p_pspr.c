@@ -35,6 +35,7 @@ rcsid[] = "$Id: p_pspr.c,v 1.5 1997/02/03 22:45:12 b1 Exp $";
 
 // State.
 #include "doomstat.h"
+#include "g_game.h"
 
 // Data.
 #include "sounds.h"
@@ -602,6 +603,13 @@ void P_BulletSlope (mobj_t*	mo)
 {
     angle_t	an;
     
+    // with free look, where the player looks
+    if (mo->player && G_FreeLook ())
+    {
+	bulletslope = P_LookSlope (mo->player);
+	return;
+    }
+
     // see which target is to be aimed at
     an = mo->angle;
     bulletslope = P_AimLineAttack (mo, an, 16*64*FRACUNIT);

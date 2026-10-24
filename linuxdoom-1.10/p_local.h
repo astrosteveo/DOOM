@@ -225,6 +225,8 @@ P_AimLineAttack
   angle_t	angle,
   fixed_t	distance );
 
+fixed_t P_LookSlope (player_t* player);
+
 void
 P_LineAttack
 ( mobj_t*	t1,

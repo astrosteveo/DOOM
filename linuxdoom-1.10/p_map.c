@@ -38,6 +38,7 @@ rcsid[] = "$Id: p_map.c,v 1.5 1997/02/03 22:45:11 b1 Exp $";
 
 // State.
 #include "doomstat.h"
+#include "g_game.h"
 #include "r_state.h"
 // Data.
 #include "sounds.h"
@@ -894,6 +895,42 @@ PTR_AimTraverse (intercept_t* in)
 
 
 //
+// PTR_ShootPlane
+// With free look a shot can go into a floor or a ceiling, which
+// vanilla's are never aimed at. True if it does before frac in the
+// sector sec it is crossing, with a puff where it meets the plane, or
+// none on the sky.
+//
+static boolean PTR_ShootPlane (sector_t* sec, fixed_t frac)
+{
+    fixed_t	z;
+    fixed_t	height;
+
+    z = shootz + FixedMul (aimslope, FixedMul (frac, attackrange));
+    if (z < sec->floorheight)
+	height = sec->floorheight;
+    else if (z > sec->ceilingheight)
+    {
+	// don't shoot the sky!
+	if (sec->ceilingpic == skyflatnum)
+	    return true;
+	height = sec->ceilingheight;
+    }
+    else
+	return false;
+
+    // where it meets the plane, a bit closer
+    frac = FixedDiv (FixedDiv (height - shootz, aimslope) - 4*FRACUNIT,
+		     attackrange);
+    if (frac < 0)
+	frac = 0;
+    P_SpawnPuff (trace.x + FixedMul (trace.dx, frac),
+		 trace.y + FixedMul (trace.dy, frac), height);
+    return true;
+}
+
+
+//
 // PTR_ShootTraverse
 //
 boolean PTR_ShootTraverse (intercept_t* in)
@@ -915,6 +952,13 @@ boolean PTR_ShootTraverse (intercept_t* in)
     if (in->isaline)
     {
 	li = in->d.line;
+
+	if (G_FreeLook ()
+	    && PTR_ShootPlane (P_PointOnLineSide (trace.x, trace.y, li)
+			       && li->backsector
+			       ? li->backsector : li->frontsector,
+			       in->frac))
+	    return false;
 	
 	if (li->special)
 	    P_ShootSpecialLine (shootthing, li);
@@ -1055,6 +1099,20 @@ P_AimLineAttack
  
 
 //
+// P_LookSlope
+// The slope a player looks along with free look, for their shots to go
+// where they look.
+//
+fixed_t P_LookSlope (player_t* player)
+{
+    angle_t	an;
+
+    an = (angle_t)player->lookpitch >> ANGLETOFINESHIFT;
+    return FixedDiv (finesine[an], finecosine[an]);
+}
+
+
+//
 // P_LineAttack
 // If damage == 0, it is just a test trace
 // that will leave linetarget set.
@@ -1079,10 +1137,13 @@ P_LineAttack
     attackrange = distance;
     aimslope = slope;
 		
-    P_PathTraverse ( t1->x, t1->y,
-		     x2, y2,
-		     PT_ADDLINES|PT_ADDTHINGS,
-		     PTR_ShootTraverse );
+    // Past every line it crosses, a shot can still end in a plane.
+    if (P_PathTraverse ( t1->x, t1->y,
+			 x2, y2,
+			 PT_ADDLINES|PT_ADDTHINGS,
+			 PTR_ShootTraverse )
+	&& G_FreeLook ())
+	PTR_ShootPlane (R_PointInSubsector (x2, y2)->sector, FRACUNIT);
 }
  
 

@@ -188,6 +188,8 @@ Dictionary DoomSim::get_state() const {
 	d["oldz"] = s.oldz;
 	d["oldangle"] = s.oldangle;
 	d["turn"] = s.turn;
+	d["freelook"] = s.freelook != 0;
+	d["pitch"] = s.pitch;
 	d["menu"] = s.menu != 0;
 	d["paused"] = s.paused != 0;
 	d["demoplayback"] = s.demoplayback != 0;

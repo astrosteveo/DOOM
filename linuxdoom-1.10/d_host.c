@@ -229,12 +229,17 @@ void DH_GetState (dh_state_t* state)
 	    state->oldangle = state->angle;
 	// G_PendingTurn is an angle_t; it turns either way.
 	state->turn = (int)G_PendingTurn () * (float)(2*M_PI / 4294967296.0);
+	state->freelook = G_FreeLook ();
+	state->pitch = state->freelook
+	    ? player->lookpitch * (float)(2*M_PI / 4294967296.0) : 0;
     }
     else
     {
 	state->x = state->y = state->z = state->angle = 0;
 	state->oldx = state->oldy = state->oldz = state->oldangle = 0;
 	state->turn = 0;
+	state->freelook = 0;
+	state->pitch = 0;
 	state->extralight = state->fixedcolormap = 0;
 	state->palette = 0;
     }
@@ -295,7 +300,7 @@ int DH_PostEvent (const dh_event_t* event)
     ev.data1 = event->data1;
     ev.data2 = event->data2;
     ev.data3 = event->data3;
-    if (ev.type == ev_mouse && mouse_novert)
+    if (ev.type == ev_mouse && mouse_novert && !G_FreeLook ())
 	ev.data3 = 0;
     D_PostEvent (&ev);
     D_ProcessEvents ();
