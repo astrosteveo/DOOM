@@ -53,6 +53,7 @@ func _ready() -> void:
 		environment.glow_enabled = false
 		environment.volumetric_fog_enabled = false
 	sim.set_mix_sound(_classic)
+	input.screen = screen
 	input.ended.connect(_check)
 	if _check(sim.start(args)):
 		screen.start()

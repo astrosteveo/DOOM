@@ -47,6 +47,7 @@ public:
 		EVENT_KEY_DOWN = 0,
 		EVENT_KEY_UP = 1,
 		EVENT_MOUSE = 2,
+		EVENT_POINTER = 3,
 	};
 
 	// The game's controls, as d_host.h's DH_FORWARD etc.

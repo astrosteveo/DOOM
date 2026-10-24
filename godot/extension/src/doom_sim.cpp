@@ -48,7 +48,8 @@ int DoomSim::tic() {
 	return DH_Tic();
 }
 
-static_assert(DoomSim::EVENT_KEY_DOWN == DH_KEYDOWN && DoomSim::EVENT_KEY_UP == DH_KEYUP && DoomSim::EVENT_MOUSE == DH_MOUSE,
+static_assert(DoomSim::EVENT_KEY_DOWN == DH_KEYDOWN && DoomSim::EVENT_KEY_UP == DH_KEYUP && DoomSim::EVENT_MOUSE == DH_MOUSE
+		&& DoomSim::EVENT_POINTER == DH_POINTER,
 		"DoomSim's event types are d_host.h's");
 static_assert(DoomSim::CONTROL_FORWARD == DH_FORWARD && DoomSim::CONTROL_RUN == DH_RUN && DH_RUN + 1 == DH_NUMCONTROLS,
 		"DoomSim's controls are d_host.h's");
@@ -607,6 +608,7 @@ void DoomSim::_bind_methods() {
 	BIND_ENUM_CONSTANT(EVENT_KEY_DOWN);
 	BIND_ENUM_CONSTANT(EVENT_KEY_UP);
 	BIND_ENUM_CONSTANT(EVENT_MOUSE);
+	BIND_ENUM_CONSTANT(EVENT_POINTER);
 	BIND_ENUM_CONSTANT(CONTROL_FORWARD);
 	BIND_ENUM_CONSTANT(CONTROL_BACKWARD);
 	BIND_ENUM_CONSTANT(CONTROL_TURN_LEFT);
