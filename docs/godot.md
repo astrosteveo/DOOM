@@ -182,8 +182,8 @@ The proof is demo2's hall on E1M3 at tic 2349: STARG3's walls, FLOOR0_3's floor 
 easel's, picked from its candidates, lit by the sector as Doom lights it and by the lamp's own light; the six lamps
 on E1M3 are props, and everything else is still Doom's. None of it reads or writes the game.
 
-Not yet: easel's picks (`art/picks/`, 21 MB, most of it the lamp's master mesh) are meant for LFS, which isn't
-installed here, so they aren't committed; the built files in `godot/assets/` are.
+easel's picks (`art/picks/`, 21 MB, most of it the lamp's master mesh) are committed through Git LFS, next to
+the built files in `godot/assets/`.
 
 ## Playing it
 
