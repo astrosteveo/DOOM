@@ -46,6 +46,9 @@ Before saying a change is done, run the check and show what it printed. Never re
 fails for a reason unrelated to the change, say so and show the output instead of working around it.
 - For a change near game logic: play the demos with `-playdemo <demo> -hashlog <file>` (add `-timedemo` to run
   unthrottled) on the base and the changed build, and show that the logs match (`d_statehash.c`).
+- For a change to the Godot project's scripts: `godot --path godot` for a few seconds, and show that it printed no
+  `SCRIPT ERROR`. `tools/run_demo.gd` doesn't load `main.tscn`, and gdh imports the project first, so neither
+  catches a script that only compiles once the editor has rebuilt `.godot/`.
 - For a change to the host API or the extension: the same, through Godot:
   `godot --headless --path godot -s res://tools/run_demo.gd -- -playdemo demo1 -hashlog <file>`, against the SDL3
   build's log.
@@ -73,6 +76,9 @@ fails for a reason unrelated to the change, say so and show the output instead o
 - Config is under `$XDG_CONFIG_HOME/linuxdoom`, savegames and screenshots under `$XDG_DATA_HOME/linuxdoom`
   (`i_system.c`).
 - `-fwrapv -fno-strict-aliasing` are load-bearing: without them the optimizer can desync demos.
+- No `class_name` in `godot/`: a script that uses another `preload`s it by path into a constant of the same name.
+  Godot finds `class_name`s through `.godot/`'s class cache, which is gitignored and only the editor rebuilds, so a
+  checkout whose cache predates a new class fails to compile the scripts that use it.
 - Under gdh, `$XDG_DATA_HOME` is gdh's own, so the game doesn't find the IWAD: pass `-iwad`.
 - `-record <name>` takes at most 27 characters (`demoname` is 32 bytes with `.lmp`): a longer path overflows it and
   crashes in both builds. Opening the menu while recording desyncs the demo, as in vanilla.
