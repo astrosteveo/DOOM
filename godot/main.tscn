@@ -12,6 +12,7 @@
 [ext_resource type="Shader" path="res://level/sprite.gdshader" id="10"]
 [ext_resource type="Shader" path="res://level/fuzz.gdshader" id="11"]
 [ext_resource type="Script" path="res://level/thing_props.gd" id="12"]
+[ext_resource type="Script" path="res://screen/crosshair.gd" id="13"]
 
 [sub_resource type="ShaderMaterial" id="sprite_material"]
 shader = ExtResource("10")
@@ -132,6 +133,12 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 expand_mode = 1
+
+[node name="Crosshair" type="Control" parent="Screen"]
+unique_name_in_owner = true
+visible = false
+mouse_filter = 2
+script = ExtResource("13")
 
 [node name="Flash" type="ColorRect" parent="Screen"]
 unique_name_in_owner = true

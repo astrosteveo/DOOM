@@ -7,7 +7,8 @@
 // the sector's light in 16 steps, the player's extralight, and the
 // distance: walls by their scale on screen (R_StoreWallRange), floors
 // and ceilings by their distance (R_MapPlane). Both come down to the
-// depth in front of the eye, with no pitch to account for.
+// depth in front of the eye, level, since Doom's view never looks up or
+// down: doom_depth, which free look's pitch leaves alone.
 
 // The console player's, from DoomSim's state: steps of light added for
 // a muzzle flash, and the COLORMAP row everything is drawn through
@@ -23,6 +24,18 @@ const int MAXLIGHTSCALE = 48;
 const int MAXLIGHTZ = 128;
 const int DISTMAP = 2;
 const int INVERSECOLORMAP = 32;
+
+// Up, in view space.
+vec3 doom_up(mat4 view) {
+	return mat3(view) * vec3(0.0, 1.0, 0.0);
+}
+
+// How far a point in view space is in front of the eye, level, in
+// metres: its view space depth when the view doesn't pitch.
+float doom_depth(vec3 vertex, mat4 view) {
+	vec3 up = doom_up(view);
+	return dot(vertex, normalize(vec3(0.0, 0.0, -1.0) + up * up.z));
+}
 
 // The COLORMAP row for a sector light level (0 to 255) at depth map
 // units in front of the eye. contrast is a wall's fake contrast: -1

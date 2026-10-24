@@ -14,7 +14,7 @@ instance uniform bool fullbright = false;
 
 void fragment() {
 	int level = int(round(texelFetch(sector_lights, ivec2(sector % 256, sector / 256), 0).r * 255.0));
-	int colormap = doom_colormap(level, -VERTEX.z * 32.0, 0, false);
+	int colormap = doom_colormap(level, doom_depth(VERTEX, VIEW_MATRIX) * 32.0, 0, false);
 	if (fullbright && fixedcolormap == 0) {
 		colormap = 0;
 	}

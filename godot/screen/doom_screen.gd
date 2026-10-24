@@ -5,6 +5,7 @@ extends CanvasLayer
 ## view left transparent where Doom would draw it. Over all of it, the
 ## palette flashes, red for damage, gold for a pickup and green for the
 ## radiation suit, as a tint of the colour Doom's palette blends toward.
+## Under those, with free look, a crosshair where shots go.
 
 const PALETTES := 14
 
@@ -19,6 +20,7 @@ var projection := 1.0
 
 @onready var _picture: TextureRect = %Picture
 @onready var _flash: ColorRect = %Flash
+@onready var _crosshair: Control = %Crosshair
 
 var _texture: ImageTexture
 
@@ -49,6 +51,16 @@ func draw(fraction: float, palette: int) -> int:
 	# Fetched each frame, not cached, so the flash follows the gamma the 2D layer does.
 	_flash.color = sim.get_palette_tint(palette) if palette > 0 and palette < PALETTES else Color.TRANSPARENT
 	return status
+
+
+## Shows the crosshair at the middle of the view, which the camera looks
+## through and the player shoots at with free look, or hides it. Call it
+## after draw().
+func show_crosshair(shown: bool) -> void:
+	_crosshair.visible = shown and view.has_area()
+	if _crosshair.visible:
+		var rect := _picture.get_global_rect()
+		_crosshair.position = rect.position + Vector2(view.get_center()) / Vector2(size) * rect.size
 
 
 ## Where a point in the window is on the screen, in the screen's pixels,

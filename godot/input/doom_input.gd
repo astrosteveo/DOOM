@@ -10,7 +10,9 @@ extends Node
 ## of Doom's. In the menu, keys go as they are, to type savegame names.
 ##
 ## The mouse is the game's while a level is played, as in the SDL3 build:
-## it turns and fires, and turns the view at once, between tics; menus,
+## it turns and fires, and turns the view at once, between tics. Moved
+## away and back it looks up and down with free look, which the game
+## turns off in demos and net games, and ignores without. Menus,
 ## pauses and demos give the cursor back. -nograbmouse never takes it.
 ## The cursor works the menu, which reads where it is on Doom's screen:
 ## it picks what it is over, and clicks and the wheel go to that.

@@ -10,6 +10,8 @@
 // floor. doom_sprite_depth puts those pixels at the depth of the floor
 // they cover, a hair nearer, so the floor doesn't hide them and walls in
 // front still do.
+//
+// Include doom_light.gdshaderinc first.
 
 const int DOOM_SPRITE_FLIP = 1;
 const int DOOM_SPRITE_FULLBRIGHT = 2;
@@ -43,10 +45,10 @@ void doom_sprite_vertex(inout vec3 vertex, out vec2 uv, out vec3 origin, out int
 	// Map units across the view plane from the thing, and up from its
 	// feet; mirrored frames keep their offsets.
 	vec2 at = vec2(corner.x * rect.z - offset.x, offset.y - (1.0 - corner.y) * rect.w);
-	vec3 up = normalize(mat3(view) * vec3(0.0, 1.0, 0.0));
+	vec3 up = normalize(doom_up(view));
 	vec3 across = normalize(cross(up, vec3(0.0, 0.0, 1.0)));
 	vertex = origin + (across * at.x + up * at.y) / 32.0;
-	if (-origin.z * 32.0 < DOOM_MINZ) {
+	if (doom_depth(origin, view) * 32.0 < DOOM_MINZ) {
 		vertex = vec3(0.0, 0.0, 1.0);
 	}
 
@@ -57,12 +59,16 @@ void doom_sprite_vertex(inout vec3 vertex, out vec2 uv, out vec3 origin, out int
 // The depth to draw a pixel of the sprite at, from its view space
 // position: where it is, or the floor it covers below the thing's feet
 // at origin.
-float doom_sprite_depth(vec3 vertex, vec3 origin, float fragz, mat4 projection) {
-	if (origin.y >= 0.0 || vertex.y >= origin.y) {
+float doom_sprite_depth(vec3 vertex, vec3 origin, float fragz, mat4 projection, mat4 view) {
+	// Heights above the eye.
+	vec3 up = doom_up(view);
+	float feet = dot(origin, up);
+	float height = dot(vertex, up);
+	if (feet >= 0.0 || height >= feet) {
 		return fragz;
 	}
 	// Along the same ray from the eye, at the height of the feet.
-	vec3 floor_point = vertex * (origin.y / vertex.y) * 0.99;
+	vec3 floor_point = vertex * (feet / height) * 0.99;
 	vec4 clip = projection * vec4(floor_point, 1.0);
 	return clip.z / clip.w;
 }

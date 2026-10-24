@@ -35,7 +35,7 @@ void fragment() {
 	if (texture(atlas, UV).a < 0.5) {
 		discard;
 	}
-	DEPTH = doom_sprite_depth(VERTEX, origin, FRAGCOORD.z, PROJECTION_MATRIX);
+	DEPTH = doom_sprite_depth(VERTEX, origin, FRAGCOORD.z, PROJECTION_MATRIX, VIEW_MATRIX);
 	// Doom's 320x200, stretched over the view's height as its 2D layer
 	// is. The table runs down each column and on into the next, and
 	// goes on from where it left off each frame; this keeps its pattern
