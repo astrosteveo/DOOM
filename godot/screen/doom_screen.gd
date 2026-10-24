@@ -51,5 +51,12 @@ func draw(fraction: float, palette: int) -> int:
 	return status
 
 
+## Where a point in the window is on the screen, in the screen's pixels,
+## as the menu takes the cursor.
+func to_screen(point: Vector2) -> Vector2i:
+	var rect := _picture.get_global_rect()
+	return Vector2i(((point - rect.position) / rect.size * Vector2(size)).floor())
+
+
 func _resize() -> void:
 	sim.set_screen_size(get_window().size)

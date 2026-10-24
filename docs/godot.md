@@ -196,6 +196,13 @@ Godot plays the game as well as showing it: input goes in as Doom's own events, 
   work as in the SDL3 build. The controls are also Input Map actions (`doom_forward` and so on), which post the key
   the config binds each control to (`DH_ControlKey`): Godot's bindings come on top of Doom's. The mouse is captured
   while a level is played, and turns only, as with `mouse_novert`.
+- **The cursor in the menu.** Anywhere else the cursor shows, and `DoomInput` posts it as a pointer event
+  (`DH_POINTER`, `ev_pointer`): where it is in the screen's pixels, the buttons and the wheel. Only `m_menu.c` reads
+  it, so it can't reach a ticcmd. The cursor picks the item it is over, as the arrows do, skull and sound alike; a
+  click is Enter and the right button Backspace, or Escape at the top. The wheel and a click on a slider's bar move
+  the slider through its own routine. A click takes a message away but never answers yes, and the right button
+  answers no. On the title pages and in demos a click opens the menu, as a key does. The SDL3 build posts no pointer
+  events, so its menu is vanilla's.
 - **Doom's own 2D layer, not Godot UI.** The status bar, messages, menus, automap, intermission, finale and title
   pages all work at once and look exactly as in the SDL3 build, which a rebuild in Godot UI would have to earn screen
   by screen; a Godot HUD can still replace parts of it later. `DH_Draw` runs `D_Display` with `hostview` set: no

@@ -108,20 +108,26 @@ void		DH_GetState (dh_state_t* state);
 // DH_KEY_ codes; a mouse event carries the buttons held, 1 left, 2
 // right and 4 middle, and how far the mouse moved right and away from
 // the player since the last, in the SDL3 build's mouse counts (a pixel
-// of relative motion), which the game scales by its sensitivity.
+// of relative motion), which the game scales by its sensitivity. A
+// pointer event is the cursor, for the menu, while the mouse isn't the
+// game's: the buttons held as for the mouse, with 8 and 16 while the
+// wheel turns up and down, and where the cursor is in the screen's
+// pixels (DH_GetScreen), right and down from the top left. The game
+// itself never sees it, so it can't change how a level plays.
 enum
 {
     DH_KEYDOWN,
     DH_KEYUP,
-    DH_MOUSE
+    DH_MOUSE,
+    DH_POINTER
 };
 
 typedef struct
 {
     int		type;
     int		data1;		// the key, or the mouse buttons
-    int		data2;		// mouse motion right
-    int		data3;		// mouse motion forward
+    int		data2;		// mouse motion right, or the cursor's x
+    int		data3;		// mouse motion forward, or the cursor's y
 } dh_event_t;
 
 // Doom's codes for keys that aren't characters.

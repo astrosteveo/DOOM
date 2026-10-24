@@ -289,7 +289,9 @@ int DH_PostEvent (const dh_event_t* event)
 	return ended = DH_ERROR;
     }
 
-    ev.type = event->type;
+    // Doom's own types match the host's, but for the pointer's, which
+    // comes after the joystick's.
+    ev.type = event->type == DH_POINTER ? ev_pointer : event->type;
     ev.data1 = event->data1;
     ev.data2 = event->data2;
     ev.data3 = event->data3;

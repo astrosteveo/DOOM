@@ -12,6 +12,8 @@ extends Node
 ## The mouse is the game's while a level is played, as in the SDL3 build:
 ## it turns and fires, and turns the view at once, between tics; menus,
 ## pauses and demos give the cursor back. -nograbmouse never takes it.
+## The cursor works the menu, which reads where it is on Doom's screen:
+## it picks what it is over, and clicks and the wheel go to that.
 
 ## Emitted when posting ends the game, as quitting from the menu does,
 ## with what DoomSim.post_event() returned.
@@ -31,7 +33,11 @@ const CONTROLS := {
 	&"doom_run": DoomSim.CONTROL_RUN,
 }
 
+const DoomScreen := preload("res://screen/doom_screen.gd")
+
 @export var sim: DoomSim
+## For where the cursor is on Doom's screen.
+var screen: DoomScreen
 
 ## The Doom keys each held key posted as it went down, by Godot keycode,
 ## so that letting go lets go of the same ones.
@@ -41,6 +47,10 @@ var _buttons_changed := false
 ## Mouse motion not yet posted, in pixels.
 var _motion := Vector2.ZERO
 var _grabbed := false
+## The buttons held while the cursor works the menu, as a pointer event
+## has them, and where it is on Doom's screen.
+var _pointer_buttons := 0
+var _pointer := Vector2i(-1, -1)
 var _never_grab := OS.get_cmdline_user_args().has("-nograbmouse")
 
 
@@ -59,6 +69,11 @@ func update() -> void:
 		if not grab and _buttons:
 			_buttons = 0
 			_buttons_changed = true
+		# The game won't hear the button that started it come up, so
+		# the menu must hear it now, to see the next click go down.
+		if grab and _pointer_buttons:
+			_pointer_buttons = 0
+			_post_pointer()
 
 	# Whole counts only, as i_video.c does; the rest waits for the next.
 	var dx := int(_motion.x)
@@ -75,6 +90,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_key(key)
 		return
 	if not _grabbed:
+		_pointer_input(event)
 		return
 	var motion := event as InputEventMouseMotion
 	if motion:
@@ -98,6 +114,38 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and _buttons:
 		_buttons = 0
 		_buttons_changed = true
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT and _pointer_buttons:
+		_pointer_buttons = 0
+		_post_pointer()
+
+
+## The cursor, for the menu, while the mouse isn't the game's.
+func _pointer_input(event: InputEvent) -> void:
+	var mouse := event as InputEventMouse
+	if not mouse:
+		return
+	var at := screen.to_screen(mouse.position)
+	var button := event as InputEventMouseButton
+	if button:
+		# Pointer events number the wheel's turns after the buttons.
+		var bit := 0
+		match button.button_index:
+			MOUSE_BUTTON_LEFT: bit = 1
+			MOUSE_BUTTON_RIGHT: bit = 2
+			MOUSE_BUTTON_MIDDLE: bit = 4
+			MOUSE_BUTTON_WHEEL_UP: bit = 8
+			MOUSE_BUTTON_WHEEL_DOWN: bit = 16
+		if not bit:
+			return
+		_pointer_buttons = (_pointer_buttons | bit) if button.pressed else (_pointer_buttons & ~bit)
+	elif at == _pointer:
+		return
+	_pointer = at
+	_post_pointer()
+
+
+func _post_pointer() -> void:
+	_post(DoomSim.EVENT_POINTER, _pointer_buttons, _pointer.x, _pointer.y)
 
 
 func _key(event: InputEventKey) -> void:

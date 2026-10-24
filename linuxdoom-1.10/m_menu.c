@@ -1339,6 +1339,236 @@ M_WriteText
 //
 
 //
+// THE POINTER
+// A host that shows a cursor in the menu posts ev_pointer, which only
+// the menu reads. The cursor picks the item it is over, as the arrows
+// do; a click is Enter or, with the right button, Backspace.
+//
+
+//
+// M_Slider
+// The setting a slider item shows on the bar in the row under it, and
+// how many steps the bar has; NULL for an item that isn't a slider.
+//
+static int* M_Slider (menu_t* menu, int item, int* width)
+{
+    if (menu == &OptionsDef && item == scrnsize)
+    {
+	*width = 9;
+	return &screenSize;
+    }
+    if (menu == &OptionsDef && item == mousesens)
+    {
+	*width = 10;
+	return &mouseSensitivity;
+    }
+    if (menu == &SoundDef && item == sfx_vol)
+    {
+	*width = 16;
+	return &sfxVolume;
+    }
+    if (menu == &SoundDef && item == music_vol)
+    {
+	*width = 16;
+	return &musicVolume;
+    }
+    return NULL;
+}
+
+
+//
+// M_ItemWidth
+// How far right of the menu's x an item reaches, with what is drawn
+// beside it.
+//
+static int M_ItemWidth (menu_t* menu, int item)
+{
+    patch_t*	patch;
+
+    // The savegame's border, as M_DrawSaveLoadBorder draws it: 24
+    // cells and the right end, whose patches hang 3 to the left.
+    if (menu == &LoadDef || menu == &SaveDef)
+	return 24*8 + 8 - 3;
+    // M_DrawOptions draws these settings right of their names.
+    if (menu == &OptionsDef && item == messages)
+    {
+	patch = W_CacheLumpName (msgNames[showMessages], PU_CACHE);
+	return 120 + SHORT(patch->width);
+    }
+    if (menu == &OptionsDef && item == detail)
+    {
+	patch = W_CacheLumpName (detailNames[detailLevel], PU_CACHE);
+	return 175 + SHORT(patch->width);
+    }
+    if (!menu->menuitems[item].name[0])
+	return 0;
+    patch = W_CacheLumpName (menu->menuitems[item].name, PU_CACHE);
+    return SHORT(patch->width);
+}
+
+
+//
+// M_PointerItem
+// The item at x,y on the original 320x200 screen, from the skull at its
+// left to its right end, or -1. A slider's bar, in the row under it, is
+// the slider's, and sets *bar.
+//
+static int M_PointerItem (int x, int y, boolean* bar)
+{
+    int		i;
+    int		top;
+    int		width;
+
+    *bar = false;
+
+    // A Read This! page is one item with no name: the whole page.
+    if (currentMenu->numitems == 1 && !currentMenu->menuitems[0].name[0])
+	return 0;
+
+    for (i = 0; i < currentMenu->numitems; i++)
+    {
+	top = currentMenu->y + i*LINEHEIGHT;
+	// The savegames' borders hang 4 above their rows.
+	if (currentMenu == &LoadDef || currentMenu == &SaveDef)
+	    top -= 4;
+	if (y < top || y >= top + LINEHEIGHT)
+	    continue;
+	if (currentMenu->menuitems[i].status == -1)
+	{
+	    if (i > 0 && M_Slider (currentMenu, i-1, &width)
+		&& x >= currentMenu->x && x < currentMenu->x + (width+2)*8)
+	    {
+		*bar = true;
+		return i-1;
+	    }
+	    return -1;
+	}
+	if (x >= currentMenu->x + SKULLXOFF
+	    && x < currentMenu->x + M_ItemWidth (currentMenu, i))
+	    return i;
+	return -1;
+    }
+    return -1;
+}
+
+
+//
+// M_PointerKey
+// The key M_Responder is to take a pointer event for, or -1 once the
+// pointer has done what it does here.
+//
+static int M_PointerKey (event_t* ev)
+{
+    static int	lastbuttons;
+    static int	lastx = -1;
+    static int	lasty = -1;
+    int		pressed;
+    boolean	moved;
+    int		x;
+    int		y;
+    int		item;
+    boolean	bar;
+    int*	value;
+    int		width;
+    int		dot;
+    int		i;
+
+    // Buttons act as they go down.
+    pressed = ev->data1 & ~lastbuttons;
+    lastbuttons = ev->data1;
+
+    // From the screen's pixels to the original 320x200, which the menu
+    // is laid out in.
+    x = ev->data2 - screenleft;
+    x = x < 0 ? -1 : x / screenscale;
+    y = ev->data3 < 0 ? -1 : ev->data3 / screenscale;
+    moved = x != lastx || y != lasty;
+    lastx = x;
+    lasty = y;
+
+    // Typing a savegame's name: a click on it saves, the right button
+    // gives up, as Enter and Escape do.
+    if (saveStringEnter)
+    {
+	if (pressed & 2)
+	    return KEY_ESCAPE;
+	if (pressed & 1 && M_PointerItem (x, y, &bar) == saveSlot)
+	    return KEY_ENTER;
+	return -1;
+    }
+
+    // A click takes a message away, but never says yes to a question;
+    // the right button says no.
+    if (messageToPrint)
+    {
+	if (pressed & 2)
+	    return KEY_ESCAPE;
+	if (pressed & 1 && !messageNeedsInput)
+	    return KEY_ENTER;
+	return -1;
+    }
+
+    // On the title pages and in demos a click opens the menu, as a key
+    // does in G_Responder.
+    if (!menuactive)
+    {
+	if (pressed & 1 && gameaction == ga_nothing && !singledemo
+	    && (demoplayback || gamestate == GS_DEMOSCREEN))
+	    return KEY_ESCAPE;
+	return -1;
+    }
+
+    // The right button goes back a menu, or out of the menu at the top.
+    if (pressed & 2)
+	return currentMenu->prevMenu ? KEY_BACKSPACE : KEY_ESCAPE;
+
+    item = M_PointerItem (x, y, &bar);
+    if (item < 0)
+	return -1;
+
+    // Moving onto an item picks it, as the arrows do; a click or the
+    // wheel is for the item under the cursor, whatever the keys picked.
+    if (item != itemOn && (moved || pressed))
+    {
+	itemOn = item;
+	if (!pressed)
+	    S_StartSound (NULL, sfx_pstop);
+    }
+
+    value = M_Slider (currentMenu, item, &width);
+    if (value && pressed & 8)
+	return KEY_RIGHTARROW;
+    if (value && pressed & 16)
+	return KEY_LEFTARROW;
+
+    // A click on a slider's bar sets it there, a step at a time through
+    // its routine, as the arrows do.
+    if (pressed & 1 && bar && value)
+    {
+	dot = (x - currentMenu->x - 8) / 8;
+	if (dot < 0)
+	    dot = 0;
+	if (dot > width - 1)
+	    dot = width - 1;
+	if (dot != *value)
+	{
+	    for (i = 0; i < width && *value < dot; i++)
+		currentMenu->menuitems[item].routine (1);
+	    for (i = 0; i < width && *value > dot; i++)
+		currentMenu->menuitems[item].routine (0);
+	    S_StartSound (NULL, sfx_stnmov);
+	}
+	return -1;
+    }
+
+    if (pressed & 1)
+	return KEY_ENTER;
+    return -1;
+}
+
+
+
+//
 // M_Responder
 //
 boolean M_Responder (event_t* ev)
@@ -1354,7 +1584,14 @@ boolean M_Responder (event_t* ev)
 	
     ch = -1;
 	
-    if (ev->type == ev_joystick && joywait < I_GetTime())
+    if (ev->type == ev_pointer)
+    {
+	// Nothing but the menu reads the pointer.
+	ch = M_PointerKey (ev);
+	if (ch == -1)
+	    return true;
+    }
+    else if (ev->type == ev_joystick && joywait < I_GetTime())
     {
 	if (ev->data3 == -1)
 	{

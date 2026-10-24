@@ -37,7 +37,11 @@ typedef enum
     ev_keydown,
     ev_keyup,
     ev_mouse,
-    ev_joystick
+    ev_joystick,
+    // Where the cursor is, for the menu alone: data2 and data3 in the
+    // screen's pixels, data1 the buttons as for ev_mouse, with 8 and 16
+    // while the wheel turns up and down.
+    ev_pointer
 } evtype_t;
 
 // Event structure.
