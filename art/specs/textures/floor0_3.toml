@@ -1,0 +1,14 @@
+# FLOOR0_3, a grey flagstone floor. One tile is one repeat of Doom's
+# 64x64 flat, 2 m across.
+kind = "texture"
+subject = "grey stone floor of interlocking rectangular flagstones of different sizes, tight dark joints, flat worn surface with fine scratches"
+
+[stage.relief]
+use = true
+
+[stage.delight]
+use = true
+
+[stage.maps]
+size = 512                     # 256 px a metre, eight times Doom's
+roughness = [0.9, 0.7]

@@ -1,0 +1,13 @@
+# COLU, the floor lamp (MT_MISC31): 23 by 48 pixels in Doom, a pixel to
+# a map unit, so 0.72 m across and 1.5 m tall.
+kind = "prop"
+subject = "a chunky sci-fi light pillar: a thick glossy black metal cylinder, a third as wide as it is tall, on a wide round flared base of stacked rings, capped by a glowing yellow light band at the top"
+
+[stage.mesh]
+n = 2
+
+[stage.finish]
+size = [0.72, 1.5, 0.72]
+triangles = 3000
+texture = 512
+collision = "none"

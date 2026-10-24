@@ -1,0 +1,628 @@
+{
+  "assets": {
+    "props/colu": {
+      "kind": "prop",
+      "stages": {
+        "concept": {
+          "artifact": {
+            "path": "picks/props/colu/concept.png",
+            "sha256": "a16a61479d5a5f0f8c68933edda64b3fa5103103c89b626468f060b1cda2011b"
+          },
+          "comfyui": "v0.42.1",
+          "comfyui_commit": "63be2f9b82ad0dac88a7ceaa28a9cf3154125a18",
+          "models": {
+            "ae.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38"
+            },
+            "birefnet.safetensors": {
+              "commercial": "yes",
+              "licence": "MIT",
+              "sha256": "9ab37426bf4de0567af6b5d21b16151357149139362e6e8992021b8ce356a154"
+            },
+            "qwen_3_4b_fp8_mixed.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "72450b19758172c5a7273cf7de729d1c17e7f434a104a00167624cba94f68f15"
+            },
+            "z_image_turbo_int8_convrot.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "be517ebd47c912a5626a588e1aeea43e6be4a43c0cdcd2b48a2a780d9f358635"
+            }
+          },
+          "pick": "r002/c04",
+          "picked_at": "2026-10-23T20:16:38",
+          "picked_by": "user",
+          "problems": [],
+          "prompt": "a chunky sci-fi light pillar: a thick glossy black metal cylinder, a third as wide as it is tall, on a wide round flared base of stacked rings, capped by a glowing yellow light band at the top, realistic, physically based materials, natural studio lighting, fine surface detail, a single object shown whole and centred, standing on its base, seen in a three-quarter view from slightly above, even flat lighting, no cast shadows, isolated on a plain light grey background, no text",
+          "repro": "approx",
+          "seed": 83663266729931,
+          "stage_hash": "f75d7ab4b11ac97f354240bb44688665cc9431ab5d7291aa12370153adc7cd1f",
+          "type": "gate",
+          "values": {
+            "height": 1024,
+            "prompt": "a chunky sci-fi light pillar: a thick glossy black metal cylinder, a third as wide as it is tall, on a wide round flared base of stacked rings, capped by a glowing yellow light band at the top, realistic, physically based materials, natural studio lighting, fine surface detail, a single object shown whole and centred, standing on its base, seen in a three-quarter view from slightly above, even flat lighting, no cast shadows, isolated on a plain light grey background, no text",
+            "width": 1024
+          },
+          "workflow": "t2i_cutout_zimage",
+          "workflow_digest": "01ff9a3f004d07c8bb62e0472ef72f9007984a118d91fb29eb6f682c1059fcca"
+        },
+        "finish": {
+          "built_at": "2026-10-23T20:18:08",
+          "measured": {
+            "bounds": [
+              [
+                -0.35996,
+                0.00032,
+                -0.35875
+              ],
+              [
+                0.35954,
+                1.43219,
+                0.35901
+              ]
+            ],
+            "collision": [],
+            "degenerate_faces": 0,
+            "double_sided": false,
+            "edges": 4410,
+            "finish": {
+              "blender": "5.2.2 LTS",
+              "hidden_share": 0.0,
+              "pieces_dropped": 0,
+              "strays": 0
+            },
+            "flat_uv_faces": 0,
+            "flipped_edges": 0,
+            "glb_kb": 743.4,
+            "maps": {
+              "base": [
+                512,
+                512
+              ],
+              "metallic_roughness": [
+                512,
+                512
+              ],
+              "normal": [
+                512,
+                512
+              ],
+              "occlusion": [
+                512,
+                512
+              ]
+            },
+            "materials": 1,
+            "normal_inward": 0.0,
+            "open_edges": 0,
+            "placement": {
+              "base_share": 0.142,
+              "scale": [
+                1.70775,
+                1.70775,
+                1.70775
+              ],
+              "size": [
+                0.72,
+                1.432,
+                0.7178
+              ],
+              "tilt": 14.37,
+              "turn": 157.19
+            },
+            "size": [
+              0.7195,
+              1.4319,
+              0.7178
+            ],
+            "triangles": 2940
+          },
+          "outputs": {
+            "props/colu.glb": "facaa8fd4869c732c11bfeecb2971d4068d6697877084638668301a61eb5b075"
+          },
+          "picks": {
+            "mesh": "b9448b5f31bb8dfa21e7f3495a2621edaa6e956671043645fa471e9041fb7eaa"
+          },
+          "repro": "exact",
+          "stage_hash": "6cd3a9599378a8fa385a068c1b84e5ab8452dd7d537fa9f1ff61ea9635c15be3",
+          "type": "build"
+        },
+        "mesh": {
+          "artifact": {
+            "path": "picks/props/colu/mesh.glb",
+            "sha256": "b9448b5f31bb8dfa21e7f3495a2621edaa6e956671043645fa471e9041fb7eaa"
+          },
+          "comfyui": "v0.42.1",
+          "comfyui_commit": "63be2f9b82ad0dac88a7ceaa28a9cf3154125a18",
+          "inputs": {
+            "image": {
+              "from": "concept",
+              "sha256": "a16a61479d5a5f0f8c68933edda64b3fa5103103c89b626468f060b1cda2011b"
+            }
+          },
+          "models": {
+            "birefnet.safetensors": {
+              "commercial": "yes",
+              "licence": "MIT",
+              "sha256": "9ab37426bf4de0567af6b5d21b16151357149139362e6e8992021b8ce356a154"
+            },
+            "dino_v3_L_naf_fp32.safetensors": {
+              "commercial": "restricted",
+              "licence": "DINOv3 License (Meta)",
+              "sha256": "4ad2ec4e0879a5b5b04cd97325cc37da954a7b6edca5170b86510f17f2b2290f"
+            },
+            "moge_2_vitl_normal_fp16.safetensors": {
+              "commercial": "yes",
+              "licence": "MIT",
+              "sha256": "cb1a692d03235671e959e81360d7b4d9f44aefadb1f852d6ca6aa17799d5e31f"
+            },
+            "pixal3d_int8_convrot.safetensors": {
+              "commercial": "yes",
+              "licence": "MIT",
+              "sha256": "4621eac3b715484f79303c7152af641fe0b2b14f4d0e3d394fd6922d00f955ec"
+            },
+            "trellis_2_int8_convrot.safetensors": {
+              "commercial": "yes",
+              "licence": "MIT",
+              "sha256": "d01952ad137213f6a868f86b6b877026276f84af5eec23069217475a0bad3a31"
+            },
+            "trellis_2_shape_vae_bf16.safetensors": {
+              "commercial": "yes",
+              "licence": "MIT",
+              "sha256": "de0cb4949a76c59ee5c091a995a69bcc8c51d5aeda939f0c641a50d2a72341f4"
+            },
+            "trellis_2_texture_vae_bf16.safetensors": {
+              "commercial": "yes",
+              "licence": "MIT",
+              "sha256": "714e5ebf094a610e12a8e3b5175c18a62f37f6ea4218acb6073644456b73ab0e"
+            }
+          },
+          "pick": "r001/c02",
+          "picked_at": "2026-10-23T20:18:04",
+          "picked_by": "user",
+          "problems": [],
+          "prompt": "",
+          "repro": "approx",
+          "seed": 228894884273163,
+          "stage_hash": "1771dc605e123fdc046ddc6ce0b712d35be054376fb3752dba7d45dd41baec46",
+          "type": "gate",
+          "values": {},
+          "workflow": "i23d",
+          "workflow_digest": "b20b72d2b9aecab3edce64f071f4e5994f975cbdf998b4d1b888d5f892882c00"
+        }
+      }
+    },
+    "textures/floor0_3": {
+      "kind": "texture",
+      "stages": {
+        "delight": {
+          "artifact": {
+            "path": "picks/textures/floor0_3/delight.png",
+            "sha256": "265cd17057c61d7c40b507cefc3f6f244d6a6e39aa423feec6294ca1e4d94c91"
+          },
+          "comfyui": "v0.42.1",
+          "comfyui_commit": "63be2f9b82ad0dac88a7ceaa28a9cf3154125a18",
+          "inputs": {
+            "image": {
+              "from": "tile",
+              "sha256": "84498988398e9ff762133baa88a3da40b2bcbc5f856a74553dfc15c095aed51d"
+            }
+          },
+          "models": {
+            "marigold_v2_albedo.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "263ec11bb29625c5ec7b145ea2fbc9e8e7854ad4a229031e020e55d614e8e919"
+            },
+            "marigold_v2_albedo_conditioning.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "f3d70cc7d4d37743e3f4da197b97a2d2847a8a172a50f86112642ecfa99834fd"
+            },
+            "marigold_v2_albedo_vae.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "91524d3ecafcbb25ceea3d7a76b09581eb27664fb1ba09996db3da2b1f91563f"
+            },
+            "qwen_image_edit_2509_int8_convrot.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "638402843782296122f42f2ff557a63a9535c4fbc3f6978308042c8d0f4012b4"
+            }
+          },
+          "pick": "r001/c01",
+          "picked_at": "2026-10-23T20:16:38",
+          "picked_by": "user",
+          "problems": [],
+          "prompt": "",
+          "repro": "approx",
+          "seed": 150145783477028,
+          "stage_hash": "26bdcef278fac9129adc219e9c19d8f53c3acdc090b8c8127987cbf64a73bf85",
+          "type": "gate",
+          "values": {},
+          "workflow": "delight_marigold",
+          "workflow_digest": "cb3a0732d3169464f60b17627441f30140d72d71b3005943cd72c4b69a2bb67d"
+        },
+        "maps": {
+          "built_at": "2026-10-23T20:18:03",
+          "measured": {
+            "delight": {
+              "seam": 0.905
+            },
+            "maps": {
+              "albedo": {
+                "mean": 0.6523,
+                "seam": 1.033,
+                "size": [
+                  512,
+                  512
+                ]
+              },
+              "height": {
+                "seam": 1.656,
+                "size": [
+                  512,
+                  512
+                ]
+              },
+              "normal": {
+                "seam": 1.305,
+                "size": [
+                  512,
+                  512
+                ],
+                "steepest": 79.4
+              },
+              "orm": {
+                "metallic": {
+                  "max": 0.0,
+                  "mean": 0.0,
+                  "min": 0.0
+                },
+                "occlusion": {
+                  "max": 1.0,
+                  "mean": 0.9941,
+                  "min": 0.6392
+                },
+                "roughness": {
+                  "max": 0.902,
+                  "mean": 0.7945,
+                  "min": 0.698
+                },
+                "seam": 1.072,
+                "size": [
+                  512,
+                  512
+                ]
+              }
+            },
+            "pick": {
+              "seam": 0.964,
+              "size": 1024
+            }
+          },
+          "outputs": {
+            "textures/floor0_3.tres": "dfc68334e976477032d3afc5015aa4f900cf6dc7bc27d1cd7dfa5ba6866af6a0",
+            "textures/floor0_3_albedo.png": "73f5243b966d8a84af71b7b4c78edf11507536378786d85d3163db72a31e9fd8",
+            "textures/floor0_3_height.png": "951e08b00771926d6c86c8224275a86dddc53d08da78dac26e8f562d1a580f35",
+            "textures/floor0_3_normal.png": "ea26733f7debdf4c1529594da212ed93129aced059b08e48ef88d943f2ea03de",
+            "textures/floor0_3_orm.png": "27c4e680852f7fb5addd0cee8e2d98d6f9d5f585eaccb6928c2bb2b32a80cd17"
+          },
+          "picks": {
+            "delight": "265cd17057c61d7c40b507cefc3f6f244d6a6e39aa423feec6294ca1e4d94c91",
+            "relief": "d80cf7931f930d6b7212175fe041cea7172fce66ee5273e436edb441b24817b2",
+            "tile": "84498988398e9ff762133baa88a3da40b2bcbc5f856a74553dfc15c095aed51d"
+          },
+          "repro": "exact",
+          "stage_hash": "3db6bb93d6000c381fa864ee0e87fc1c672f7713625b8347a39f571ff2ec9d19",
+          "type": "build"
+        },
+        "relief": {
+          "artifact": {
+            "path": "picks/textures/floor0_3/relief.png",
+            "sha256": "d80cf7931f930d6b7212175fe041cea7172fce66ee5273e436edb441b24817b2"
+          },
+          "comfyui": "v0.42.1",
+          "comfyui_commit": "63be2f9b82ad0dac88a7ceaa28a9cf3154125a18",
+          "inputs": {
+            "image": {
+              "from": "tile",
+              "sha256": "84498988398e9ff762133baa88a3da40b2bcbc5f856a74553dfc15c095aed51d"
+            }
+          },
+          "models": {
+            "marigold_v2_normals.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "94a96e203f47797b23a21c6fe0bf169db178342698871f6a95d944537a680135"
+            },
+            "marigold_v2_normals_conditioning.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "a0f82526b471482dfb2c2403aa63582f7732241d706f1f5b0daeda88762eeb5f"
+            },
+            "marigold_v2_normals_vae.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "66db6213a47b53e8835df48c9977f06cd74c9a973c6f0ac4d65a725de03add71"
+            },
+            "qwen_image_edit_2509_int8_convrot.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "638402843782296122f42f2ff557a63a9535c4fbc3f6978308042c8d0f4012b4"
+            }
+          },
+          "pick": "r001/c01",
+          "picked_at": "2026-10-23T20:18:02",
+          "picked_by": "user",
+          "problems": [],
+          "prompt": "",
+          "repro": "approx",
+          "seed": 75979627905944,
+          "stage_hash": "bb39e92133f4d6ab2ba07b50f331dd6b1d9f7257278e525c5d45b52660af907b",
+          "type": "gate",
+          "values": {},
+          "workflow": "normals_marigold",
+          "workflow_digest": "e2bd9c4d7c3941578c955b8f8bda298225cd25b7dc09c30a66c556d98f8cf51b"
+        },
+        "tile": {
+          "artifact": {
+            "path": "picks/textures/floor0_3/tile.png",
+            "sha256": "84498988398e9ff762133baa88a3da40b2bcbc5f856a74553dfc15c095aed51d"
+          },
+          "comfyui": "v0.42.1",
+          "comfyui_commit": "63be2f9b82ad0dac88a7ceaa28a9cf3154125a18",
+          "models": {
+            "ae.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38"
+            },
+            "qwen_3_4b_fp8_mixed.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "72450b19758172c5a7273cf7de729d1c17e7f434a104a00167624cba94f68f15"
+            },
+            "z_image_turbo_int8_convrot.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "be517ebd47c912a5626a588e1aeea43e6be4a43c0cdcd2b48a2a780d9f358635"
+            }
+          },
+          "pick": "r001/c01",
+          "picked_at": "2026-10-23T20:15:56",
+          "picked_by": "user",
+          "problems": [],
+          "prompt": "grey stone floor of interlocking rectangular flagstones of different sizes, tight dark joints, flat worn surface with fine scratches, seamless tileable texture, realistic, physically based materials, natural studio lighting, fine surface detail, flat top-down view straight onto the surface, even diffuse lighting with no shadows or highlights, the pattern fills the whole frame edge to edge, no objects, no border, no text",
+          "repro": "approx",
+          "seed": 146286978474424,
+          "stage_hash": "06c45731829511d45acbf2a8a7d400bde8994b81d15fa94f02a7039108277013",
+          "type": "gate",
+          "values": {
+            "prompt": "grey stone floor of interlocking rectangular flagstones of different sizes, tight dark joints, flat worn surface with fine scratches, seamless tileable texture, realistic, physically based materials, natural studio lighting, fine surface detail, flat top-down view straight onto the surface, even diffuse lighting with no shadows or highlights, the pattern fills the whole frame edge to edge, no objects, no border, no text"
+          },
+          "workflow": "tile_zimage",
+          "workflow_digest": "8675cc5fb3ebbd8693d3777d29b2310b5bb1df02ef7f1153d689a84a54664598"
+        }
+      }
+    },
+    "textures/starg3": {
+      "kind": "texture",
+      "stages": {
+        "delight": {
+          "artifact": {
+            "path": "picks/textures/starg3/delight.png",
+            "sha256": "0d3457aba8410fe7713bf42fa77274f370033323770dfcfcfcc1f6f634f5c2b5"
+          },
+          "comfyui": "v0.42.1",
+          "comfyui_commit": "63be2f9b82ad0dac88a7ceaa28a9cf3154125a18",
+          "inputs": {
+            "image": {
+              "from": "tile",
+              "sha256": "7ece367f94f7c9ecc269863fb07b576d86f3e6b03c893f81157184295a8c3910"
+            }
+          },
+          "models": {
+            "marigold_v2_albedo.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "263ec11bb29625c5ec7b145ea2fbc9e8e7854ad4a229031e020e55d614e8e919"
+            },
+            "marigold_v2_albedo_conditioning.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "f3d70cc7d4d37743e3f4da197b97a2d2847a8a172a50f86112642ecfa99834fd"
+            },
+            "marigold_v2_albedo_vae.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "91524d3ecafcbb25ceea3d7a76b09581eb27664fb1ba09996db3da2b1f91563f"
+            },
+            "qwen_image_edit_2509_int8_convrot.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "638402843782296122f42f2ff557a63a9535c4fbc3f6978308042c8d0f4012b4"
+            }
+          },
+          "pick": "r001/c01",
+          "picked_at": "2026-10-23T20:16:38",
+          "picked_by": "user",
+          "problems": [],
+          "prompt": "",
+          "repro": "approx",
+          "seed": 150563275699681,
+          "stage_hash": "db4cb99efe28da5eec7915e70d63fd3ff7888ef719689519a34e64204b88feed",
+          "type": "gate",
+          "values": {},
+          "workflow": "delight_marigold",
+          "workflow_digest": "cb3a0732d3169464f60b17627441f30140d72d71b3005943cd72c4b69a2bb67d"
+        },
+        "maps": {
+          "built_at": "2026-10-23T20:18:02",
+          "measured": {
+            "delight": {
+              "seam": 1.262
+            },
+            "maps": {
+              "albedo": {
+                "mean": 0.4656,
+                "seam": 1.018,
+                "size": [
+                  512,
+                  512
+                ]
+              },
+              "height": {
+                "seam": 0.956,
+                "size": [
+                  512,
+                  512
+                ]
+              },
+              "normal": {
+                "seam": 1.931,
+                "size": [
+                  512,
+                  512
+                ],
+                "steepest": 80.3
+              },
+              "orm": {
+                "metallic": {
+                  "max": 0.0,
+                  "mean": 0.0,
+                  "min": 0.0
+                },
+                "occlusion": {
+                  "max": 1.0,
+                  "mean": 0.9838,
+                  "min": 0.5608
+                },
+                "roughness": {
+                  "max": 0.851,
+                  "mean": 0.7014,
+                  "min": 0.549
+                },
+                "seam": 1.175,
+                "size": [
+                  512,
+                  512
+                ]
+              }
+            },
+            "pick": {
+              "seam": 0.626,
+              "size": 1024
+            }
+          },
+          "outputs": {
+            "textures/starg3.tres": "90ae35f1262366ed3a5ac84909eca422d01e48d20cf09d8b0846bdf7bde337a0",
+            "textures/starg3_albedo.png": "15571d20d13f5551bc41b9295f23ed6c2087ead3fa5e4ee885e1ac03838ae094",
+            "textures/starg3_height.png": "6030914940014f31b65456803ed46013ddc975d1a6e20da1a4e3562621645840",
+            "textures/starg3_normal.png": "f42ce596f0a96d29e114ec519534c178f77b7740c9822eb67ce605680e960248",
+            "textures/starg3_orm.png": "b7275ee0af2ee6e8e5e08d7a05d3a5c12d901dd96a5cf14742776b1dbe3bfa28"
+          },
+          "picks": {
+            "delight": "0d3457aba8410fe7713bf42fa77274f370033323770dfcfcfcc1f6f634f5c2b5",
+            "relief": "04aed3bd52545cc48509cdfb7b9f65010f4aea84003069313d85dd8df5402d5e",
+            "tile": "7ece367f94f7c9ecc269863fb07b576d86f3e6b03c893f81157184295a8c3910"
+          },
+          "repro": "exact",
+          "stage_hash": "cf59794133b684e652256f5bf231f0a75f169dadddbb95842d06733ac1a448b8",
+          "type": "build"
+        },
+        "relief": {
+          "artifact": {
+            "path": "picks/textures/starg3/relief.png",
+            "sha256": "04aed3bd52545cc48509cdfb7b9f65010f4aea84003069313d85dd8df5402d5e"
+          },
+          "comfyui": "v0.42.1",
+          "comfyui_commit": "63be2f9b82ad0dac88a7ceaa28a9cf3154125a18",
+          "inputs": {
+            "image": {
+              "from": "tile",
+              "sha256": "7ece367f94f7c9ecc269863fb07b576d86f3e6b03c893f81157184295a8c3910"
+            }
+          },
+          "models": {
+            "marigold_v2_normals.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "94a96e203f47797b23a21c6fe0bf169db178342698871f6a95d944537a680135"
+            },
+            "marigold_v2_normals_conditioning.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "a0f82526b471482dfb2c2403aa63582f7732241d706f1f5b0daeda88762eeb5f"
+            },
+            "marigold_v2_normals_vae.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "66db6213a47b53e8835df48c9977f06cd74c9a973c6f0ac4d65a725de03add71"
+            },
+            "qwen_image_edit_2509_int8_convrot.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "638402843782296122f42f2ff557a63a9535c4fbc3f6978308042c8d0f4012b4"
+            }
+          },
+          "pick": "r001/c01",
+          "picked_at": "2026-10-23T20:18:00",
+          "picked_by": "user",
+          "problems": [],
+          "prompt": "",
+          "repro": "approx",
+          "seed": 280980597518788,
+          "stage_hash": "59a115465d27518c884d8654b2dc52a149a9f9c5f709fb8a5838df1df8d21462",
+          "type": "gate",
+          "values": {},
+          "workflow": "normals_marigold",
+          "workflow_digest": "e2bd9c4d7c3941578c955b8f8bda298225cd25b7dc09c30a66c556d98f8cf51b"
+        },
+        "tile": {
+          "artifact": {
+            "path": "picks/textures/starg3/tile.png",
+            "sha256": "7ece367f94f7c9ecc269863fb07b576d86f3e6b03c893f81157184295a8c3910"
+          },
+          "comfyui": "v0.42.1",
+          "comfyui_commit": "63be2f9b82ad0dac88a7ceaa28a9cf3154125a18",
+          "models": {
+            "ae.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38"
+            },
+            "qwen_3_4b_fp8_mixed.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "72450b19758172c5a7273cf7de729d1c17e7f434a104a00167624cba94f68f15"
+            },
+            "z_image_turbo_int8_convrot.safetensors": {
+              "commercial": "yes",
+              "licence": "Apache-2.0",
+              "sha256": "be517ebd47c912a5626a588e1aeea43e6be4a43c0cdcd2b48a2a780d9f358635"
+            }
+          },
+          "pick": "r001/c02",
+          "picked_at": "2026-10-23T20:15:56",
+          "picked_by": "user",
+          "problems": [],
+          "prompt": "industrial military base wall of olive-green painted metal panels, two rows of large square panels with bevelled edges and dark recessed seams, a narrow band of small panels between the rows, grime and rust streaks running down, seamless tileable texture, realistic, physically based materials, natural studio lighting, fine surface detail, flat top-down view straight onto the surface, even diffuse lighting with no shadows or highlights, the pattern fills the whole frame edge to edge, no objects, no border, no text",
+          "repro": "approx",
+          "seed": 246306435803567,
+          "stage_hash": "7b53884de7e2aab38d85f3794ceed6677acf837e48ad0daddec3ea2d0030ccf7",
+          "type": "gate",
+          "values": {
+            "prompt": "industrial military base wall of olive-green painted metal panels, two rows of large square panels with bevelled edges and dark recessed seams, a narrow band of small panels between the rows, grime and rust streaks running down, seamless tileable texture, realistic, physically based materials, natural studio lighting, fine surface detail, flat top-down view straight onto the surface, even diffuse lighting with no shadows or highlights, the pattern fills the whole frame edge to edge, no objects, no border, no text"
+          },
+          "workflow": "tile_zimage",
+          "workflow_digest": "8675cc5fb3ebbd8693d3777d29b2310b5bb1df02ef7f1153d689a84a54664598"
+        }
+      }
+    }
+  },
+  "version": 1
+}

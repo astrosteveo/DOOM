@@ -1,0 +1,14 @@
+# STARG3, the green-grey panelled wall of E1's halls. One tile is one
+# repeat of Doom's 128x128 texture, 4 m across.
+kind = "texture"
+subject = "industrial military base wall of olive-green painted metal panels, two rows of large square panels with bevelled edges and dark recessed seams, a narrow band of small panels between the rows, grime and rust streaks running down"
+
+[stage.relief]
+use = true
+
+[stage.delight]
+use = true
+
+[stage.maps]
+size = 512                     # 128 px a metre, four times Doom's
+roughness = [0.85, 0.55]

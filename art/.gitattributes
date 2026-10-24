@@ -1,0 +1,2 @@
+# Picks are binary and can be large: keep them in Git LFS.
+picks/** filter=lfs diff=lfs merge=lfs -text

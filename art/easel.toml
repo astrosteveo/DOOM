@@ -1,0 +1,5 @@
+# easel's settings for this game's art. Specs go in specs/, styles in styles/.
+output = "../godot/assets"            # where built files go, from this folder
+default_style = "realistic"      # styles a spec gets when it names none
+front = "-z"                   # the direction a model's front faces in the game
+godot = true                   # also write Godot resources where a kind has them

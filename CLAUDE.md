@@ -25,6 +25,10 @@ simulation in C, presented by Godot as a modern 3D game with custom textures and
   `DoomSim` node; `main.tscn` runs it, `level/` builds the level from what it reads and draws the things with Doom's
   sprites (`thing_sprites.gd`), `input/` posts the keyboard and mouse to the game, `screen/` shows Doom's own 2D screen
   over the 3D view and `sound/` plays its sounds and music; `tools/run_demo.gd` plays a demo headless.
+  `content/definitions.cfg` lists what replaces Doom's textures, flats and sprites: easel's materials and props in
+  `assets/`, lit by Doom's light (`content/doom_content.gd`).
+- `art/`: easel's specs, lockfile and picks for the game's art (`~/Projects/rename-after-deciding`); `easel build`
+  in `art/` writes `godot/assets/`.
 - `third_party/nuked-opl3/`: the OPL3 emulator, vendored unmodified (LGPL 2.1+).
 - `ipx/`, `sersrc/`, `sndserv/`: the original DOS network drivers and Linux sound server. Not built.
 

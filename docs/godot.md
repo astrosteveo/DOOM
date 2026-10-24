@@ -140,6 +140,51 @@ fuzz. The three demos still log the same `-hashlog` through Godot as in the SDL3
 Not yet: player colours in a net game (`MF_TRANSLATION`) draw every player green; sprites cast no shadows from Godot's
 lights.
 
+## Content
+
+`godot/content/definitions.cfg` says what Godot draws in place of Doom's own art; anything it doesn't list draws as
+in Doom. It is a Godot `ConfigFile`, which Godot reads without help and people can edit:
+
+```ini
+[textures]
+STARG3="res://assets/textures/starg3.tres"
+
+[flats]
+FLOOR0_3="res://assets/textures/floor0_3.tres"
+
+[sprites]
+COLU="res://assets/props/colu.glb"
+```
+
+- **Where the assets come from.** easel (`~/Projects/rename-after-deciding`) keeps a game's art in an `art/` folder in
+  the game: its specs, the picks, and a lockfile of what each came from. Here that is `art/` at the top of the
+  repository, which builds into `godot/assets/` (`output = "../godot/assets"` in `art/easel.toml`): a texture as base
+  colour, normal, ORM and height maps and a StandardMaterial3D `.tres`, a prop as a GLB at its size in metres, its
+  origin at the middle of its base and its front -z, which are Godot's metres and a Doom thing's facing as `DoomSpace`
+  has them.
+- **Textures and flats** by their names in the WAD, to a material. The material covers one repeat of what it replaces
+  (128x128 STARG3 is 4 m square, a 64x64 flat 2 m), so it moves, pegs and animates as the texture would.
+- **Sprites, not types, to props.** A type's states use several sprites (a barrel stands as BAR1 and bursts as BEXP),
+  so a prop listed for BAR1 gives way to Doom's own burst. For a monster the sprite is the type: one sprite has all
+  its frames, which is where animated models will go. `DoomThingProps` keeps a prop a thing, by the thing's id, placed
+  and turned between tics as the sprites are; a thing that gives light doesn't let its prop shadow it.
+- **Doom's light on easel's materials.** `DoomContent` puts a StandardMaterial3D's maps on Doom's shaders
+  (`doom_material.gdshaderinc`): `material_surface.gdshader` places walls, floors and ceilings as `surface.gdshader`
+  does, and `prop.gdshader` lights a prop as its sprite would be lit, its sector's light by the depth, or full bright
+  for a full bright frame. Doom's light is ambient light, so as on Doom's own surfaces it is the emission, here of the
+  base colour less the ambient occlusion, as `doom_light.gdshaderinc` planned; Godot's lights light the rest of the
+  material, its normals, roughness and metal. With `-classic`, Doom's light alone shades them, darker with distance as
+  Doom's own.
+- **Imports.** Godot imports easel's maps as 2D images until its editor draws them in 3D; their `.import` files are set
+  as easel's sandbox ends up, VRAM compressed with mipmaps and the normal map as a normal map.
+
+The proof is demo2's hall on E1M3 at tic 2349: STARG3's walls, FLOOR0_3's floor and the floor lamp (COLU) are
+easel's, picked from its candidates, lit by the sector as Doom lights it and by the lamp's own light; the six lamps
+on E1M3 are props, and everything else is still Doom's. None of it reads or writes the game.
+
+Not yet: easel's picks (`art/picks/`, 21 MB, most of it the lamp's master mesh) are meant for LFS, which isn't
+installed here, so they aren't committed; the built files in `godot/assets/` are.
+
 ## Playing it
 
 Godot plays the game as well as showing it: input goes in as Doom's own events, and Doom draws its own 2D screen.
@@ -215,6 +260,6 @@ sound can't change how the game plays: `tools/run_demo.gd` now runs with sound o
 2. ~~Sector lighting, then Godot's: lights for lamps and fireballs, fog, glow.~~ Done, above.
 3. ~~Input, menus and the status bar, so the game can be played, not only watched.~~ Done, above.
 4. ~~Sound and music through Godot's audio.~~ Done, above.
-5. Content. ~~Things drawn with Doom's own sprites.~~ Done, above. Then a definitions file mapping Doom's textures,
-   flats and things to easel's PBR materials and GLB props, then models with animations for monsters once easel's
-   character kind exists.
+5. Content. ~~Things drawn with Doom's own sprites.~~ ~~A definitions file mapping Doom's textures, flats and things to
+   easel's PBR materials and GLB props.~~ Done, above. Then models with animations for monsters once easel's character
+   kind exists.
