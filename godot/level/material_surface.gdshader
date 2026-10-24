@@ -19,7 +19,7 @@ void vertex() {
 void fragment() {
 	int sector = int(round(UV2.x));
 	int level = int(round(texelFetch(sector_lights, ivec2(sector % 256, sector / 256), 0).r * 255.0));
-	float depth = -VERTEX.z * 32.0;
+	float depth = doom_depth(VERTEX, VIEW_MATRIX) * 32.0;
 	int colormap = doom_colormap(level, depth, int(round(UV2.y)), plane);
 	vec3 color = doom_material_albedo(UV);
 	float ao = doom_material_ao(UV);

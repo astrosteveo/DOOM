@@ -5,6 +5,7 @@
 shader_type spatial;
 render_mode unshaded, fog_disabled;
 
+#include "res://level/doom_light.gdshaderinc"
 #include "res://level/doom_planes.gdshaderinc"
 
 uniform sampler2D sky : source_color, filter_nearest, repeat_enable;
@@ -23,10 +24,12 @@ void fragment() {
 	vec2 size = vec2(textureSize(sky, 0));
 	float u = turns * 1024.0 / size.x;
 	// Row 100 at the horizon and 160 rows to a unit of height over depth
-	// (skytexturemid, and pspriteiscale at any width). The game never
-	// shows above the top row, so higher looks fade from it to the
-	// colour above over 12 rows.
-	float row = 100.0 - 160.0 * VERTEX.y / -VERTEX.z;
+	// (skytexturemid, and pspriteiscale at any width), the depth level
+	// in front of the eye however free look pitches the view. The game
+	// never shows above the top row, so higher looks fade from it to the
+	// colour above over 12 rows; straight up or down, the depth is 0.
+	float depth = max(doom_depth(VERTEX, VIEW_MATRIX), 1e-6);
+	float row = 100.0 - 160.0 * dot(VERTEX, doom_up(VIEW_MATRIX)) / depth;
 	float v = clamp(row, 0.5, size.y - 0.5) / size.y;
 	ALBEDO = mix(texture(sky, vec2(u, v)).rgb, above, clamp(-row / 12.0, 0.0, 1.0));
 }

@@ -2,10 +2,11 @@ extends Node3D
 ## Runs the 1997 game in DoomSim, a tic per physics tick (35 a second),
 ## and shows it: the level built whenever one loads, and every frame the
 ## things and the camera at the player's eye placed between the last two
-## tics as Doom draws them, the view turned at once by the mouse. Over it
-## goes Doom's own 2D screen (DoomScreen): status bar, menus, automap,
-## intermission and weapon, with the 3D view seen through where Doom
-## draws it, and nothing else. The player's keys and mouse go to the game
+## tics as Doom draws them, the view turned at once by the mouse, and
+## with free look pitched as the player looks. Over it goes Doom's own
+## 2D screen (DoomScreen): status bar, menus, automap, intermission and
+## weapon, with the 3D view seen through where Doom draws it, and a
+## crosshair with free look. The player's keys and mouse go to the game
 ## through Input (DoomInput). Floors, ceilings and walls move between
 ## tics in the level's shaders, which read how far between tics a frame
 ## is from tic_fraction. The game's sounds play from where they are in the
@@ -74,6 +75,7 @@ func _process(_delta: float) -> void:
 	music.update(state)
 	if not _check(screen.draw(fraction, state["palette"])):
 		return
+	screen.show_crosshair(state["freelook"] and not state["menu"] and not state["automap"])
 	# The 3D view shows only where the screen leaves room for it.
 	level.visible = screen.view.has_area()
 	if state["gamestate"] != 0 or not level.visible:
@@ -106,11 +108,13 @@ func _physics_process(_delta: float) -> void:
 
 ## Puts the camera where R_SetupFrame puts Doom's view: fraction of the
 ## way from the eye a tic before to this tic's, and turned by the mouse
-## turn the next tic will make, so that it turns at once.
+## turn the next tic will make, so that it turns at once. With free look
+## it pitches up or down as the player looks, which the mouse also
+## changes at once.
 func _place_camera(state: Dictionary, fraction: float) -> void:
 	var angle := lerp_angle(state["oldangle"], state["angle"], fraction) + float(state["turn"])
 	camera.global_transform = Transform3D(
-		Basis(Vector3.UP, DoomSpace.yaw(angle)),
+		Basis(Vector3.UP, DoomSpace.yaw(angle)) * Basis(Vector3.RIGHT, state["pitch"]),
 		DoomSpace.point(
 			lerpf(state["oldx"], state["x"], fraction),
 			lerpf(state["oldy"], state["y"], fraction),

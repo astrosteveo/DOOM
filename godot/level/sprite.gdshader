@@ -36,10 +36,10 @@ void fragment() {
 	int index = int(round(texel.r * 255.0));
 	ALPHA = texel.a;
 	ALPHA_SCISSOR_THRESHOLD = 0.5;
-	DEPTH = doom_sprite_depth(VERTEX, origin, FRAGCOORD.z, PROJECTION_MATRIX);
+	DEPTH = doom_sprite_depth(VERTEX, origin, FRAGCOORD.z, PROJECTION_MATRIX, VIEW_MATRIX);
 
 	int level = int(round(texelFetch(sector_lights, ivec2(sector % 256, sector / 256), 0).r * 255.0));
-	int row = doom_colormap(level, -origin.z * 32.0, 0, false);
+	int row = doom_colormap(level, doom_depth(origin, VIEW_MATRIX) * 32.0, 0, false);
 	if ((flags & DOOM_SPRITE_FULLBRIGHT) != 0 && fixedcolormap == 0) {
 		row = 0;
 	}

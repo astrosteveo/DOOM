@@ -195,7 +195,19 @@ Godot plays the game as well as showing it: input goes in as Doom's own events, 
   translates keys by where they are on the keyboard, as `i_video.c` does, so menus, cheats and the config's bindings
   work as in the SDL3 build. The controls are also Input Map actions (`doom_forward` and so on), which post the key
   the config binds each control to (`DH_ControlKey`): Godot's bindings come on top of Doom's. The mouse is captured
-  while a level is played, and turns only, as with `mouse_novert`.
+  while a level is played. It turns, and with free look it also looks up and down.
+- **Free look.** `G_FreeLook` is on only under a host that draws the view itself, and never while a demo records or
+  plays or in a net game, so those still play as vanilla Doom; without it the mouse turns only, as with
+  `mouse_novert`. Moving the mouse away looks up at once, as far as it would turn across, up to 80 degrees either
+  way. The pitch is `player_t`'s `lookpitch`, which savegames leave out, as they do `oldviewz`; it starts level each
+  level and each life. The player shoots exactly where they look, with no vertical autoaim: bullets and missiles
+  follow the pitch's slope (`P_LookSlope`), while the fist, the chainsaw and the BFG's spray still aim as in
+  vanilla. A shot can then go into a floor or ceiling, which vanilla's never aim at, so `PTR_ShootPlane` puts the
+  puff where it meets the plane, or none on a sky ceiling. Godot pitches the camera by `dh_state_t`'s `pitch` and
+  draws a crosshair at the middle of the view. Doom's light goes by depth level in front of the eye (`doom_depth`),
+  and the sky by height over that depth, as when the view doesn't pitch, so looking up or down changes neither; at
+  0 pitch they come to exactly the same numbers, and `-classic` draws the same pixels as before. A demo recorded in
+  Godot while moving the mouse up and down still plays back in the SDL3 build with the same `-hashlog`.
 - **The cursor in the menu.** Anywhere else the cursor shows, and `DoomInput` posts it as a pointer event
   (`DH_POINTER`, `ev_pointer`): where it is in the screen's pixels, the buttons and the wheel. Only `m_menu.c` reads
   it, so it can't reach a ticcmd. The cursor picks the item it is over, as the arrows do, skull and sound alike; a
