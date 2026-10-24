@@ -1,0 +1,7 @@
+# solo-review settings, read from the default branch so a branch can't change its own.
+# check: the command that builds and tests the project. Review and ship run it and show what it printed.
+# workflow: manual (you ask for /solo-review:review and /solo-review:ship) or auto (Claude runs both when done).
+# merge: how ship lands a branch: rebase, squash or merge.
+check: sh tools/check.sh
+workflow: manual
+merge: rebase
