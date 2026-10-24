@@ -34,6 +34,7 @@ simulation in C, presented by Godot as a modern 3D game with custom textures and
 
 ## Commands
 - `cmake -S . -B build && cmake --build build`: builds the project. There are no automated tests.
+- `tools/check.sh`: builds both, then runs Godot's main scene headless and fails on any script error. Review runs it.
 - `./build/linuxdoom`: runs it. It finds the IWAD in `$DOOMWADDIR`, `$DOOMWADPATH`, the current and data
   directories, the usual `games/doom` and `doom` share directories, and Steam libraries (`d_iwad.c`); `-iwad <file>`
   names one.

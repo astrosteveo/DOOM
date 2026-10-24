@@ -2,7 +2,7 @@
 # solo-review settings. Every key is optional; these are the defaults.
 depth: auto            # auto | quick | standard | deep
 security: auto         # auto | always | never
-check: "cmake -S . -B build && cmake --build build"
+check: "./tools/check.sh"   # both builds, then Godot's main scene headless, failing on script errors
 max_nits: 3
 max_rounds: 3          # after this many rounds on one change, step back instead of re-reviewing
 gate: push             # push | off: block Claude's `git push` while any finding is open
@@ -39,6 +39,8 @@ skip:                  # never reviewed, except files on the always-High list (s
 - A command-line override (`-scale`, `-fullscreen`, `-window`, `-nograbmouse`) gets saved to the config.
 
 ## Always check
+- A script under `godot/` that fails to compile or errors at run time in a fresh checkout, whatever `.godot/` holds:
+  a `class_name` used from another script, a `preload` of a moved file, a node path missing from its scene.
 
 ## Do not report
 - Style, naming, formatting or refactoring ideas: linters and /simplify own those.
